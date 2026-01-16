@@ -61,3 +61,24 @@ class MissingHostError(InvalidURLError):
 class MissingPortError(InvalidURLError):
     """Exception raised when a required port is missing."""
     pass
+
+
+__all__ = [
+    "URLpError",
+    "InvalidURLError",
+    "URLParseError",
+    "URLBuildError",
+    "UnsupportedSchemeError",
+    "RelativeReferenceError",
+    "QuerySerializationError",
+    "QueryParsingError",
+    "HostValidationError",
+    "PortValidationError",
+    "PathNormalizationError",
+    "FragmentEncodingError",
+    "NetlocBuildingError",
+    "UserInfoParsingError",
+    "MissingHostError",
+    "MissingPortError",
+]
+
