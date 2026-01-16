@@ -40,19 +40,19 @@ pip install -e .
 Use the top-level helpers for common URL operations.
 
 ```python
-from urlp import parse, parse_strict, build
+from urlp import parse_url, parse_url_unsafe, build
 
-# Parse a URL string into an immutable URL object
-url = parse("https://user:pw@example.com:8443/a/./b/../file?x=1&x=2#frag")
-assert url.host == "example.com"
-assert url.query_params == [("x", "1"), ("x", "2")]
+# parse_url is SECURE BY DEFAULT - blocks SSRF risks, path traversal, etc.
+url = parse_url("https://api.example.com/data?token=abc#section")
+assert url.host == "api.example.com"
+assert url.query_params == [("token", "abc")]
 
-# Use parse_strict for security-sensitive contexts
-# (enables SSRF protection, path traversal checks, homograph detection)
-safe_url = parse_strict("https://api.example.com/data")
+# This WILL RAISE an error (localhost blocked by default):
+# parse_url("http://localhost/admin")  # InvalidURLError!
 
-# Enable DNS rebinding protection (performs actual DNS lookup)
-url = parse("https://api.example.com/", check_dns=True)
+# Use parse_url_unsafe when you need to allow private IPs/localhost
+internal_url = parse_url_unsafe("http://localhost:8080/api")
+assert internal_url.host == "localhost"
 
 # Build a URL string from components
 url_str = build(
@@ -66,31 +66,45 @@ url_str = build(
 assert url_str == "https://example.com:8443/api/data?x=1&x=2#section"
 
 # URLs are immutable - use with_* methods for modifications
-url = parse("https://example.com/path")
+url = parse_url("https://example.com/path")
 new_url = url.with_host("other.com").with_port(8080)
 print(new_url)  # https://other.com:8080/path
 print(url)      # https://example.com/path (unchanged)
 ```
 
+### Security by Default
+
+`parse_url()` is secure by default and will reject:
+- Private IPs (192.168.x.x, 10.x.x.x, 172.16.x.x)
+- Localhost and loopback addresses
+- Link-local addresses (169.254.x.x)
+- `.local` and `.internal` domains
+- Path traversal patterns (`../`)
+- Double-encoded characters
+- Mixed Unicode scripts (homograph attacks)
+
+Use `parse_url_unsafe()` only when you explicitly need to allow these patterns.
+
 ### Backward Compatibility
 
-The old API (`parse_url`, `parse_url_strict`, `compose_url`) is still available but deprecated:
+The old `parse_url_strict()` is now an alias for `parse_url()` since secure is the default:
 
 ```python
-# Old API (deprecated but still works)
-from urlp import parse_url, parse_url_strict, compose_url
+# parse_url_strict is now just an alias for parse_url
+from urlp import parse_url, parse_url_strict
 
-url = parse_url("https://example.com/path")
-safe = parse_url_strict("https://api.example.com/")
-composed = compose_url({"scheme": "https", "host": "example.com"})
+# These are equivalent - both are secure by default
+url1 = parse_url("https://example.com/path")
+url2 = parse_url_strict("https://example.com/path")
 ```
 
 ## Usage
 
 ```python
-from urlp import parse, parse_relative_reference, build_relative_reference
+from urlp import parse_url, parse_url_unsafe, parse_relative_reference, build_relative_reference
 
-url = parse("https://user:pass@example.com:8080/download?token=abc")
+# parse_url is secure by default
+url = parse_url("https://user:pass@example.com:8080/download?token=abc")
 print(url.netloc)             # user:pass@example.com:8080
 print(url.effective_port)     # 8080
 
@@ -107,6 +121,10 @@ print(url3.as_string())       # https://user:pass@other.com/api?token=abc
 url4 = url.with_query_param("new", "value")
 url5 = url.without_query_param("token")
 
+# For internal/development URLs, use parse_url_unsafe
+dev_url = parse_url_unsafe("http://localhost:3000/api")
+internal = parse_url_unsafe("http://192.168.1.100/metrics")
+
 # Relative references
 parts = parse_relative_reference("./assets/logo.svg?cache=bust#hero")
 rebuilt = build_relative_reference(parts["path"], query=parts["query"], fragment=parts["fragment"])
@@ -118,19 +136,19 @@ urlp includes comprehensive security features to protect against common URL-base
 
 ### Quick Security Setup
 
-For most security-sensitive applications, use `parse_strict()`:
+`parse_url()` is secure by default - no special setup needed:
 
 ```python
-from urlp import parse_strict, InvalidURLError
+from urlp import parse_url, InvalidURLError
 
 try:
-    url = parse_strict(user_input)
+    url = parse_url(user_input)
     # URL is validated and safe to use
 except InvalidURLError as e:
     print(f"Rejected URL: {e}")
 ```
 
-This enables all security checks by default:
+Security checks enabled by default:
 - SSRF protection (blocks private IPs, localhost, link-local)
 - Path traversal detection
 - Open redirect detection  
@@ -334,10 +352,12 @@ pytest
 
 | Component | Purpose |
 | --- | --- |
-| `urlp.URL` | High-level immutable-friendly URL value object with `userinfo`, `netloc`, `with_*` helpers, and serialization via `as_string()`. |
-| `urlp.parse_url` | Facade helper: parse a URL string and return a `URL` object. Supports `strict`, `check_dns`, `frozen`, and `debug` options. |
-| `urlp.parse_url_strict` | **Security-focused parsing** with all protections enabled by default (SSRF, path traversal, homograph detection, etc.). |
-| `urlp.compose_url` | Facade helper: compose a URL string from components (wrapper around `Builder().compose`). |
+| `urlp.URL` | High-level immutable URL value object with `userinfo`, `netloc`, `with_*` helpers, and serialization via `as_string()`. |
+| `urlp.parse_url` | Parse a URL string securely (SSRF protection enabled). Supports `allow_custom_scheme` and `check_dns` options. |
+| `urlp.parse_url_unsafe` | Parse a URL without security checks. Use only for trusted input. Supports `allow_custom_scheme`, `strict`, `debug`, and `check_dns`. |
+| `urlp.parse_url_strict` | Deprecated alias for `parse_url()` (secure parsing is now the default). |
+| `urlp.build` | Build a URL string from individual component arguments (scheme, host, port, path, query, fragment, userinfo). |
+| `urlp.compose_url` | Compose a URL string from a components dict (wrapper around `Builder().compose`). |
 | `urlp.parse_relative_reference` | Split a scheme-less reference into raw `path`, `query`, and `fragment` without normalization. |
 | `urlp.build_relative_reference` | Compose a relative reference using raw segments so round-tripping preserves the original text. |
 | `urlp.round_trip_relative` | Convenience helper to parse and rebuild the same relative string, useful for validation pipelines. |
@@ -354,9 +374,10 @@ pytest
 | `url.is_semantically_equal(other)` | Compare URLs by meaning after canonicalization. |
 | `url.same_origin(other)` | Check if two URLs have the same origin (scheme + host + port). |
 | `url.origin` | Property returning the origin string (e.g., `https://example.com`). |
-| `url.freeze()` / `url.thaw()` | Make URL immutable / mutable. |
 | `url.copy(**overrides)` | Create a copy with optional component overrides. |
 | `url.with_*()` | Functional update methods: `with_scheme`, `with_host`, `with_port`, `with_path`, `with_fragment`, `with_userinfo`, `with_netloc`. |
+
+Note: URLs are always immutable. The `freeze()` and `thaw()` methods exist for backward compatibility but are no-ops.
 
 Note: Low-level classes `Parser` and `Builder` remain available but are considered internal-facing; prefer the facade.
 
@@ -377,7 +398,7 @@ When should you use **urlp** instead of the standard library `urllib.parse`?
 | **IDNA support** | ✓ | ✓ (built-in) |
 | **Port validation** | Minimal | ✓ (scheme-aware) |
 | **Userinfo/netloc helpers** | ✗ | ✓ (.userinfo, .netloc, .with_netloc()) |
-| **Immutability-friendly API** | ✗ | ✓ (with_* methods, freeze/thaw) |
+| **Immutable URL objects** | ✗ | ✓ (with_* methods return new URLs) |
 | **Relative URL handling** | ✓ (urljoin) | ✓ (parse_relative_reference) |
 | **Exception hierarchy** | Single URLError | ✓ (specialized exceptions) |
 | **SSRF protection** | ✗ | ✓ (strict mode) |
