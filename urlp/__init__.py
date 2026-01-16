@@ -125,18 +125,6 @@ def parse_url_unsafe(
     return URL(url, parser=parser, strict=strict, debug=debug, check_dns=check_dns)
 
 
-def parse_url_strict(
-    url: str, *,
-    allow_custom_scheme: bool = False,
-    check_dns: bool = False
-) -> URL:
-    """Deprecated: Use parse_url() instead.
-
-    This function is kept for backward compatibility but is now
-    identical to parse_url() since secure parsing is the default.
-    """
-    return parse_url(url, allow_custom_scheme=allow_custom_scheme, check_dns=check_dns)
-
 
 def build(
     scheme: str,
@@ -185,11 +173,6 @@ def compose_url(components: Mapping[str, Any]) -> str:
     return Builder().compose(components)
 
 
-# Aliases for convenience
-parse = parse_url  # Alias: parse() -> parse_url()
-parse_strict = parse_url  # Alias: parse_strict() -> parse_url() (same since secure is default)
-
-
 # =============================================================================
 # Public API
 # =============================================================================
@@ -200,12 +183,8 @@ __all__ = [
     # Primary API
     "parse_url",
     "parse_url_unsafe",
-    "parse_url_strict",  # Deprecated alias for parse_url
     "build",
     "compose_url",
-    # Aliases
-    "parse",  # Alias for parse_url
-    "parse_strict",  # Alias for parse_url
     # URL class
     "URL",
     # Exceptions

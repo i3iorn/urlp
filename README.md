@@ -28,7 +28,6 @@ pip install -e .
 - **Security Features:**
   - `strict` mode blocks SSRF risks (private IPs, localhost, link-local addresses)
   - `check_dns` flag detects DNS rebinding attacks via actual DNS resolution
-  - `parse_url_strict()` convenience function with all security checks enabled by default
   - Path traversal, open redirect, and double-encoding detection
   - Homograph attack prevention via mixed Unicode script detection
   - Audit logging callbacks for security monitoring
@@ -85,18 +84,6 @@ print(url)      # https://example.com/path (unchanged)
 
 Use `parse_url_unsafe()` only when you explicitly need to allow these patterns.
 
-### Backward Compatibility
-
-The old `parse_url_strict()` is now an alias for `parse_url()` since secure is the default:
-
-```python
-# parse_url_strict is now just an alias for parse_url
-from urlp import parse_url, parse_url_strict
-
-# These are equivalent - both are secure by default
-url1 = parse_url("https://example.com/path")
-url2 = parse_url_strict("https://example.com/path")
-```
 
 ## Usage
 
@@ -132,7 +119,7 @@ rebuilt = build_relative_reference(parts["path"], query=parts["query"], fragment
 
 ## Security Features
 
-urlp includes comprehensive security features to protect against common URL-based attacks. These can be enabled individually or all at once using `parse_url_strict()`.
+urlp includes comprehensive security features to protect against common URL-based attacks.
 
 ### Quick Security Setup
 
@@ -158,23 +145,27 @@ Security checks enabled by default:
 
 ### SSRF Protection (`strict` mode)
 
-Server-Side Request Forgery (SSRF) attacks trick servers into making requests to internal resources. Enable `strict=True` to block:
+Server-Side Request Forgery (SSRF) attacks trick servers into making requests to internal resources. The `parse_url()` function blocks these by default:
 
 ```python
-from urlp import parse, InvalidURLError
+from urlp import parse_url, parse_url_unsafe, InvalidURLError
 
-# These will raise InvalidURLError with strict=True:
-parse("http://localhost/admin", strict=True)      # Blocked: localhost
-parse("http://127.0.0.1/", strict=True)           # Blocked: loopback IP
-parse("http://192.168.1.1/", strict=True)         # Blocked: private IP
-parse("http://10.0.0.1/", strict=True)            # Blocked: private IP  
-parse("http://[::1]/", strict=True)               # Blocked: IPv6 loopback
-parse("http://169.254.1.1/", strict=True)         # Blocked: link-local
-parse("http://printer.local/", strict=True)       # Blocked: .local domain
-parse("http://[::ffff:127.0.0.1]/", strict=True)  # Blocked: IPv4-mapped IPv6
+# These will raise InvalidURLError with parse_url():
+parse_url("http://localhost/admin")           # Blocked: localhost
+parse_url("http://127.0.0.1/")                # Blocked: loopback IP
+parse_url("http://192.168.1.1/")              # Blocked: private IP
+parse_url("http://10.0.0.1/")                 # Blocked: private IP  
+parse_url("http://[::1]/")                    # Blocked: IPv6 loopback
+parse_url("http://169.254.1.1/")              # Blocked: link-local
+parse_url("http://printer.local/")            # Blocked: .local domain
+parse_url("http://[::ffff:127.0.0.1]/")       # Blocked: IPv4-mapped IPv6
 
 # Safe URLs work normally:
-url = parse("https://api.example.com/data", strict=True)
+url = parse_url("https://api.example.com/data")
+
+# Use parse_url_unsafe with strict=True if you need selective SSRF checks:
+url = parse_url_unsafe("http://192.168.1.1/", strict=True)  # Blocked
+url = parse_url_unsafe("http://192.168.1.1/")               # Allowed
 ```
 
 ### DNS Rebinding Protection (`check_dns` flag)
@@ -182,13 +173,13 @@ url = parse("https://api.example.com/data", strict=True)
 DNS rebinding attacks use hostnames that resolve to internal IPs. Enable `check_dns=True` to perform actual DNS resolution:
 
 ```python
-from urlp import parse
+from urlp import parse_url
 
 # Performs DNS lookup to verify host resolves to public IP
-url = parse("https://api.example.com/", check_dns=True)
+url = parse_url("https://api.example.com/", check_dns=True)
 
 # This would fail if evil.com resolves to 127.0.0.1:
-# parse("http://evil.example.com/", check_dns=True)
+# parse_url("http://evil.example.com/", check_dns=True)
 ```
 
 **Note:** `check_dns` performs network I/O (DNS lookup). Use only when necessary. The default timeout is 2 seconds.
@@ -355,7 +346,6 @@ pytest
 | `urlp.URL` | High-level immutable URL value object with `userinfo`, `netloc`, `with_*` helpers, and serialization via `as_string()`. |
 | `urlp.parse_url` | Parse a URL string securely (SSRF protection enabled). Supports `allow_custom_scheme` and `check_dns` options. |
 | `urlp.parse_url_unsafe` | Parse a URL without security checks. Use only for trusted input. Supports `allow_custom_scheme`, `strict`, `debug`, and `check_dns`. |
-| `urlp.parse_url_strict` | Deprecated alias for `parse_url()` (secure parsing is now the default). |
 | `urlp.build` | Build a URL string from individual component arguments (scheme, host, port, path, query, fragment, userinfo). |
 | `urlp.compose_url` | Compose a URL string from a components dict (wrapper around `Builder().compose`). |
 | `urlp.parse_relative_reference` | Split a scheme-less reference into raw `path`, `query`, and `fragment` without normalization. |
@@ -377,7 +367,6 @@ pytest
 | `url.copy(**overrides)` | Create a copy with optional component overrides. |
 | `url.with_*()` | Functional update methods: `with_scheme`, `with_host`, `with_port`, `with_path`, `with_fragment`, `with_userinfo`, `with_netloc`. |
 
-Note: URLs are always immutable. The `freeze()` and `thaw()` methods exist for backward compatibility but are no-ops.
 
 Note: Low-level classes `Parser` and `Builder` remain available but are considered internal-facing; prefer the facade.
 
@@ -426,7 +415,7 @@ When should you use **urlp** instead of the standard library `urllib.parse`?
 - **Working with authority components** — `.userinfo`, `.netloc`, and `.with_netloc()` save tedious string splitting
 - **Building immutable URL objects** — the `URL` class and `with_*` methods enable functional patterns
 - **Validating URLs rigorously** — scheme-aware port validation, IPv6 literal checking, IDNA encoding
-- **Preventing URL-based attacks** — use `parse_url_strict()` or individual validation methods
+- **Preventing URL-based attacks** — use `parse_url()` or individual `Validator` methods
 - **Round-tripping URLs accurately** — query string and fragment encoding is normalized and reversible
 - **Path normalization matters** — automatic handling of `./`, `../`, and redundant `/` sequences
 - **You want ergonomic query access** — `.query_pairs` provides parsed tuples alongside the query string
@@ -456,7 +445,7 @@ The library raises a small hierarchy of exceptions to help callers handle errors
 
 Recommended handling patterns:
 
-- If you only need to detect "invalid URL" cases, catch `InvalidURLError` (backwards compatible and covers all failures).
+- If you only need to detect "invalid URL" cases, catch `InvalidURLError` (covers all failures).
 - If you need specific remediation (e.g., prompt for a new host, re-prompt for a port), catch the more-specific exceptions listed above.
 
 Example:
@@ -478,15 +467,14 @@ The package `__init__` exposes the most commonly useful exception classes so con
 from urlp import InvalidURLError, HostValidationError
 ```
 
-For library authors: prefer handling the specific exceptions when possible; fall back to `InvalidURLError` if you want compatibility with older code that expects a single exception type.
+For library authors: prefer handling the specific exceptions when possible; fall back to `InvalidURLError` for a broad catch-all.
 
 
 ## Publishing notes
 
-When releasing, consider bumping the package version in `pyproject.toml` to reflect the change. This release adds significant security features including:
+When releasing, consider bumping the package version in `pyproject.toml` to reflect the change. This release includes significant security features:
 
-- `parse_url_strict()` convenience function
-- SSRF protection (`strict` mode)
+- SSRF protection (enabled by default in `parse_url()`)
 - DNS rebinding detection (`check_dns` flag)
 - Path traversal, open redirect, and double-encoding detection
 - Homograph attack prevention

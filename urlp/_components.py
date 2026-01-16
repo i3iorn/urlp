@@ -29,7 +29,7 @@ class ParseResult:
     recognized_scheme: Optional[bool] = None
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for backward compatibility."""
+        """Convert to dictionary of URL components."""
         return {
             "scheme": self.scheme,
             "userinfo": self.userinfo,

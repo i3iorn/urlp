@@ -116,7 +116,6 @@ def test_round_trip_relative_normalizes_noop() -> None:
 def test_url_is_always_immutable() -> None:
     """Test that URLs are always immutable (no setters)."""
     url = URL("https://example.com")
-    assert url.frozen is True  # URLs are always frozen
 
     # URL should be hashable since it's immutable
     assert hash(url) is not None

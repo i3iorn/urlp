@@ -174,8 +174,6 @@ class URL:
         _validate_copy_overrides(overrides)
         components = self._to_dict()
         components.update(overrides)
-        if "authentication" in overrides and "userinfo" not in overrides:
-            components["userinfo"] = overrides["authentication"]
         components["port"] = _normalize_port(components.get("port"))
 
         new_url = URL.__new__(URL)
@@ -311,40 +309,6 @@ class URL:
             return NotImplemented
         return self.as_string() == other.as_string()
 
-    # =========================================================================
-    # Backward Compatibility
-    # =========================================================================
-
-    @property
-    def frozen(self) -> bool:
-        """URLs are always immutable."""
-        return True
-
-    @property
-    def parser(self) -> Parser:
-        return self._parser
-
-    @property
-    def builder(self) -> Builder:
-        return self._builder
-
-    def freeze(self) -> None:
-        """No-op (URLs are always immutable)."""
-        pass
-
-    def thaw(self) -> None:
-        """No-op (URLs are always immutable)."""
-        pass
-
-    @property
-    def authentication(self) -> Optional[str]:
-        """Alias for userinfo."""
-        return self._userinfo
-
-    # Backward compatibility for mutable methods - now return new URL
-    def without_params(self) -> 'URL':
-        """Return new URL without query/fragment (alias for without_query)."""
-        return self.without_query()
 
 
 def _normalize_port(value: Optional[Any]) -> Optional[int]:
@@ -367,7 +331,7 @@ def _normalize_port(value: Optional[Any]) -> Optional[int]:
 def _validate_copy_overrides(overrides: Dict[str, Any]) -> None:
     """Validate copy() override arguments."""
     valid_keys = {'scheme', 'host', 'port', 'path', 'query', 'fragment',
-                  'userinfo', 'authentication', 'query_pairs'}
+                  'userinfo', 'query_pairs'}
     invalid_keys = set(overrides.keys()) - valid_keys
     if invalid_keys:
         raise InvalidURLError(f"Invalid override(s): {', '.join(sorted(invalid_keys))}")
@@ -375,12 +339,11 @@ def _validate_copy_overrides(overrides: Dict[str, Any]) -> None:
         if key in overrides and overrides[key] is not None:
             if not isinstance(overrides[key], str):
                 raise InvalidURLError(f"{key} must be a string")
-    for key in ('userinfo', 'authentication'):
-        if key in overrides and overrides[key] is not None:
-            if not isinstance(overrides[key], str):
-                raise InvalidURLError(f"{key} must be a string")
-            if not is_valid_userinfo(overrides[key]):
-                raise InvalidURLError(f"Invalid {key} format.")
+    if 'userinfo' in overrides and overrides['userinfo'] is not None:
+        if not isinstance(overrides['userinfo'], str):
+            raise InvalidURLError("userinfo must be a string")
+        if not is_valid_userinfo(overrides['userinfo']):
+            raise InvalidURLError("Invalid userinfo format.")
 
 
 __all__ = [

@@ -6,7 +6,7 @@ Tests for:
 - #4: DNS rebinding protection (behind check_dns flag)
 - #5: Cache management
 - #6: Double-encoding detection
-- #7: Secure defaults (parse_url_strict)
+- #7: Secure defaults (parse_url is secure by default)
 - #8: Path traversal detection
 - #9: Semantic URL comparison
 - #10: Audit logging
@@ -16,7 +16,6 @@ from unittest.mock import Mock, patch
 
 from urlp import (
     parse_url,
-    parse_url_strict,
     parse_url_unsafe,
     URL,
     InvalidURLError,
@@ -50,11 +49,11 @@ class TestOpenRedirectDetection:
         assert not Validator.is_open_redirect_risk("/path/to/resource")
         assert not Validator.is_open_redirect_risk("/")
 
-    def test_parse_url_strict_rejects_redirect_risk(self):
-        """parse_url_strict should reject open redirect patterns."""
+    def test_parse_url_rejects_redirect_risk(self):
+        """parse_url should reject open redirect patterns."""
         # Path with backslash
         with pytest.raises(InvalidURLError, match="open redirect"):
-            parse_url_strict("http://example.com/path\\to\\evil")
+            parse_url("http://example.com/path\\to\\evil")
 
 
 class TestURLCanonicalization:
@@ -90,11 +89,6 @@ class TestURLCanonicalization:
         canonical = url.canonicalize()
         assert canonical.query == "a=2&m=3&z=1"
 
-    def test_canonical_is_frozen(self):
-        """Canonicalized URL should be frozen."""
-        url = parse_url("http://example.com/path")
-        canonical = url.canonicalize()
-        assert canonical.frozen
 
 
 class TestPasswordMasking:
@@ -224,43 +218,38 @@ class TestDoubleEncodingDetection:
         assert not Validator.has_double_encoding("/path/to/file")
         assert not Validator.has_double_encoding("normal text")
 
-    def test_parse_url_strict_rejects_double_encoding(self):
-        """parse_url_strict should reject double-encoded URLs."""
+    def test_parse_url_rejects_double_encoding(self):
+        """parse_url should reject double-encoded URLs."""
         with pytest.raises(InvalidURLError, match="double-encoded"):
-            parse_url_strict("http://example.com/path%252Ftraversal")
+            parse_url("http://example.com/path%252Ftraversal")
 
 
 class TestSecureDefaults:
-    """Tests for secure defaults - parse_url_strict (improvement #7 round 2)."""
+    """Tests for secure defaults - parse_url is secure by default (improvement #7 round 2)."""
 
     def test_strict_mode_enabled_by_default(self):
         """Strict mode should be enabled."""
         with pytest.raises(InvalidURLError):
-            parse_url_strict("http://127.0.0.1/")
+            parse_url("http://127.0.0.1/")
 
-    def test_frozen_by_default(self):
-        """URL should be frozen by default."""
-        url = parse_url_strict("http://example.com/path")
-        assert url.frozen
-
-    def test_urls_always_immutable(self):
-        """URLs are now always immutable - frozen parameter was removed."""
-        url = parse_url_strict("http://example.com/path")
-        # URLs are always immutable now
-        assert url.frozen
+    def test_urls_are_immutable(self):
+        """URLs are immutable and hashable."""
+        url = parse_url("http://example.com/path")
+        # URLs are always immutable - can be hashed
+        assert hash(url) is not None
 
     def test_rejects_ssrf_risks(self):
         """Should reject SSRF risks."""
         with pytest.raises(InvalidURLError):
-            parse_url_strict("http://localhost/")
+            parse_url("http://localhost/")
 
         with pytest.raises(InvalidURLError):
-            parse_url_strict("http://192.168.1.1/")
+            parse_url("http://192.168.1.1/")
 
     def test_rejects_path_traversal(self):
         """Should reject path traversal."""
         with pytest.raises(InvalidURLError, match="path traversal"):
-            parse_url_strict("http://example.com/path/../../../etc/passwd")
+            parse_url("http://example.com/path/../../../etc/passwd")
 
     def test_rejects_mixed_scripts(self):
         """Should reject mixed scripts in host."""
@@ -269,13 +258,13 @@ class TestSecureDefaults:
         mixed_host = f"ex{cyrillic_a}mple"
         assert Validator.has_mixed_scripts(mixed_host), "Validator should detect mixed scripts"
 
-        # parse_url_strict checks mixed scripts on original host before IDNA encoding
+        # parse_url checks mixed scripts on original host before IDNA encoding
         with pytest.raises(InvalidURLError, match="mixed Unicode scripts"):
-            parse_url_strict(f"http://{mixed_host}.com/")
+            parse_url(f"http://{mixed_host}.com/")
 
     def test_accepts_safe_urls(self):
         """Should accept safe URLs."""
-        url = parse_url_strict("http://example.com/path?query=value#fragment")
+        url = parse_url("http://example.com/path?query=value#fragment")
         assert url.host == "example.com"
         assert url.path == "/path"
 

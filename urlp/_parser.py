@@ -1,4 +1,4 @@
-"""URL parsing module with stateless functions and backward-compatible Parser class."""
+"""URL parsing module with stateless functions and Parser class."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,10 +19,6 @@ from .exceptions import (
 from ._validation import Validator, is_valid_userinfo
 from ._patterns import PATTERNS
 
-
-# Backward compatibility aliases
-_is_valid_userinfo = is_valid_userinfo
-_AUTH_PATTERN = PATTERNS["userinfo"]
 
 
 # =============================================================================
@@ -316,5 +312,5 @@ class Parser:
 
 __all__ = [
     "parse_url", "parse_scheme", "parse_host", "parse_userinfo", "normalize_path",
-    "parse_query_string", "parse_fragment_string", "Parser", "_is_valid_userinfo", "_AUTH_PATTERN",
+    "parse_query_string", "parse_fragment_string", "Parser",
 ]
