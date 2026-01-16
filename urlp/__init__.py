@@ -59,37 +59,26 @@ from .constants import (
 # Public API Functions
 # =============================================================================
 
-def parse(url: str, *, strict: bool = False, check_dns: bool = False) -> URL:
-    """Parse a URL string into a URL object.
+def parse_url(
+    url: str, *,
+    allow_custom_scheme: bool = False,
+    check_dns: bool = False
+) -> URL:
+    """Parse URL with security checks enabled (SECURE BY DEFAULT).
 
-    Args:
-        url: The URL string to parse.
-        strict: If True, reject SSRF risks (private IPs, localhost, etc.)
-        check_dns: If True, perform DNS resolution to detect DNS rebinding.
-
-    Returns:
-        An immutable URL object.
-
-    Raises:
-        URLParseError: If the URL cannot be parsed.
-        InvalidURLError: If the URL is invalid or poses security risks.
-    """
-    return URL(url, strict=strict, check_dns=check_dns)
-
-
-def parse_strict(url: str, *, check_dns: bool = False) -> URL:
-    """Parse URL with all security checks enabled.
-
-    This is the recommended function for security-sensitive contexts.
-    It enables:
+    This is the recommended function for parsing URLs. It enables:
     - SSRF protection (blocks private IPs, localhost, etc.)
     - Double-encoding detection
     - Path traversal detection
     - Open redirect detection
     - Homograph attack detection
 
+    For parsing URLs without security checks (e.g., internal/development URLs),
+    use `parse_url_unsafe()` instead.
+
     Args:
         url: The URL string to parse.
+        allow_custom_scheme: If True, allow non-standard schemes.
         check_dns: If True, also perform DNS resolution checks.
 
     Returns:
@@ -99,7 +88,54 @@ def parse_strict(url: str, *, check_dns: bool = False) -> URL:
         InvalidURLError: If the URL fails any security check.
     """
     validate_url_security(url)
-    return URL(url, strict=True, check_dns=check_dns)
+    parser = Parser()
+    parser.custom_scheme = allow_custom_scheme
+    return URL(url, parser=parser, strict=True, check_dns=check_dns)
+
+
+def parse_url_unsafe(
+    url: str, *,
+    allow_custom_scheme: bool = False,
+    strict: bool = False,
+    debug: bool = False,
+    check_dns: bool = False
+) -> URL:
+    """Parse a URL string WITHOUT security checks.
+
+    WARNING: This function does not perform security validations by default.
+    Use `parse_url()` instead for security-sensitive contexts.
+
+    Only use this function when:
+    - Parsing URLs from trusted sources
+    - You need to allow private IPs or localhost
+    - You're intentionally bypassing security checks
+
+    Args:
+        url: The URL string to parse.
+        allow_custom_scheme: If True, allow non-standard schemes.
+        strict: If True, enable SSRF protection.
+        debug: If True, include raw input in exception traces.
+        check_dns: If True, perform DNS resolution checks.
+
+    Returns:
+        An immutable URL object.
+    """
+    parser = Parser()
+    parser.custom_scheme = allow_custom_scheme
+    return URL(url, parser=parser, strict=strict, debug=debug, check_dns=check_dns)
+
+
+def parse_url_strict(
+    url: str, *,
+    allow_custom_scheme: bool = False,
+    check_dns: bool = False
+) -> URL:
+    """Deprecated: Use parse_url() instead.
+
+    This function is kept for backward compatibility but is now
+    identical to parse_url() since secure parsing is the default.
+    """
+    return parse_url(url, allow_custom_scheme=allow_custom_scheme, check_dns=check_dns)
 
 
 def build(
@@ -137,49 +173,21 @@ def build(
     })
 
 
-# =============================================================================
-# Backward Compatibility
-# =============================================================================
-
-def parse_url(
-    url: str, *,
-    frozen: bool = False,
-    allow_custom_scheme: bool = False,
-    strict: bool = False,
-    debug: bool = False,
-    check_dns: bool = False
-) -> URL:
-    """Parse a URL string (backward compatibility).
-
-    Prefer using `parse()` or `parse_strict()` instead.
-    """
-    parser = Parser()
-    parser.custom_scheme = allow_custom_scheme
-    return URL(url, parser=parser, strict=strict, debug=debug, check_dns=check_dns)
-
-
-def parse_url_strict(
-    url: str, *,
-    frozen: bool = True,
-    allow_custom_scheme: bool = False,
-    check_dns: bool = False
-) -> URL:
-    """Parse URL with security defaults (backward compatibility).
-
-    Prefer using `parse_strict()` instead.
-    """
-    validate_url_security(url)
-    parser = Parser()
-    parser.custom_scheme = allow_custom_scheme
-    return URL(url, parser=parser, strict=True, check_dns=check_dns)
-
-
 def compose_url(components: Mapping[str, Any]) -> str:
-    """Compose a URL from components dict (backward compatibility).
+    """Compose a URL from components dict.
 
-    Prefer using `build()` instead.
+    Args:
+        components: Dict with keys: scheme, host, port, path, query, fragment, userinfo
+
+    Returns:
+        The composed URL string.
     """
     return Builder().compose(components)
+
+
+# Aliases for convenience
+parse = parse_url  # Alias: parse() -> parse_url()
+parse_strict = parse_url  # Alias: parse_strict() -> parse_url() (same since secure is default)
 
 
 # =============================================================================
@@ -189,10 +197,15 @@ def compose_url(components: Mapping[str, Any]) -> str:
 __all__ = [
     # Version
     "__version__",
-    # New API
-    "parse",
-    "parse_strict",
+    # Primary API
+    "parse_url",
+    "parse_url_unsafe",
+    "parse_url_strict",  # Deprecated alias for parse_url
     "build",
+    "compose_url",
+    # Aliases
+    "parse",  # Alias for parse_url
+    "parse_strict",  # Alias for parse_url
     # URL class
     "URL",
     # Exceptions
@@ -226,8 +239,4 @@ __all__ = [
     "MAX_USERINFO_LENGTH",
     "DEFAULT_DNS_TIMEOUT",
     "PASSWORD_MASK",
-    # Backward compatibility
-    "parse_url",
-    "parse_url_strict",
-    "compose_url",
 ]
