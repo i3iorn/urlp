@@ -39,7 +39,7 @@ except ImportError:
     def assume(condition):
         pass
 
-from urlp import parse_url, URLParseError, InvalidURLError, Validator
+from urlp import parse_url, parse_url_unsafe, URLParseError, InvalidURLError, Validator
 from urlp._validation import Validator as ValidatorClass
 from urlp._parser import _is_valid_userinfo
 
@@ -52,7 +52,7 @@ class TestParserFuzzing:
     def test_parser_handles_arbitrary_input(self, url_input):
         """Ensure parser never crashes on arbitrary input."""
         try:
-            parse_url(url_input)
+            parse_url_unsafe(url_input)
         except (URLParseError, InvalidURLError, ValueError, TypeError):
             pass  # Expected for invalid input
         # No other exceptions should occur - test passes if we get here
@@ -63,7 +63,7 @@ class TestParserFuzzing:
         """Test parser with various scheme prefixes."""
         for scheme in ['http://', 'https://', 'ftp://', 'file://', 'ws://']:
             try:
-                parse_url(scheme + url_input)
+                parse_url_unsafe(scheme + url_input)
             except (URLParseError, InvalidURLError, ValueError, TypeError):
                 pass  # Expected for invalid input
 
@@ -232,52 +232,52 @@ class TestEdgeCases:
             parse_url(f"http://example.com?{long_query}")
 
     def test_ssrf_localhost_blocked_strict(self):
-        """Ensure localhost is blocked in strict mode."""
+        """Ensure localhost is blocked in strict mode (now default)."""
         with pytest.raises(InvalidURLError):
-            parse_url("http://localhost/", strict=True)
+            parse_url("http://localhost/")
 
     def test_ssrf_private_ip_blocked_strict(self):
-        """Ensure private IPs are blocked in strict mode."""
+        """Ensure private IPs are blocked in strict mode (now default)."""
         with pytest.raises(InvalidURLError):
-            parse_url("http://192.168.1.1/", strict=True)
+            parse_url("http://192.168.1.1/")
 
     def test_ssrf_loopback_blocked_strict(self):
-        """Ensure loopback IPs are blocked in strict mode."""
+        """Ensure loopback IPs are blocked in strict mode (now default)."""
         with pytest.raises(InvalidURLError):
-            parse_url("http://127.0.0.1/", strict=True)
+            parse_url("http://127.0.0.1/")
 
     def test_ssrf_ipv6_loopback_blocked_strict(self):
-        """Ensure IPv6 loopback is blocked in strict mode."""
+        """Ensure IPv6 loopback is blocked in strict mode (now default)."""
         with pytest.raises(InvalidURLError):
-            parse_url("http://[::1]/", strict=True)
+            parse_url("http://[::1]/")
 
     def test_ssrf_local_domain_blocked_strict(self):
-        """Ensure .local domains are blocked in strict mode."""
+        """Ensure .local domains are blocked in strict mode (now default)."""
         with pytest.raises(InvalidURLError):
-            parse_url("http://printer.local/", strict=True)
+            parse_url("http://printer.local/")
 
     def test_ssrf_ipv4_mapped_ipv6_blocked_strict(self):
-        """Ensure IPv4-mapped IPv6 addresses are blocked in strict mode."""
+        """Ensure IPv4-mapped IPv6 addresses are blocked in strict mode (now default)."""
         with pytest.raises(InvalidURLError):
-            parse_url("http://[::ffff:127.0.0.1]/", strict=True)
+            parse_url("http://[::ffff:127.0.0.1]/")
 
     def test_exception_doesnt_leak_input_without_debug(self):
         """Ensure exceptions don't leak input when debug=False."""
         try:
-            parse_url("http://invalid\x00host/", debug=False)
+            parse_url_unsafe("http://invalid\x00host/", debug=False)
         except URLParseError as e:
             # Exception message should not contain the raw input
             assert "\x00" not in str(e)
 
     def test_frozen_url_hashable(self):
         """Ensure frozen URLs can be hashed."""
-        url = parse_url("http://example.com/path", frozen=True)
+        url = parse_url("http://example.com/path")
         hash_value = hash(url)
         assert isinstance(hash_value, int)
 
     def test_url_always_hashable(self):
         """URLs are now always immutable and hashable."""
-        url = parse_url("http://example.com/path", frozen=False)
+        url = parse_url("http://example.com/path")
         # URLs are always immutable now, so they should be hashable
         hash_value = hash(url)
         assert isinstance(hash_value, int)
@@ -293,9 +293,9 @@ class TestEdgeCases:
 
     def test_frozen_urls_in_set(self):
         """Ensure frozen URLs can be used in sets."""
-        url1 = parse_url("http://example.com/path", frozen=True)
-        url2 = parse_url("http://example.com/path", frozen=True)
-        url3 = parse_url("http://example.com/other", frozen=True)
+        url1 = parse_url("http://example.com/path")
+        url2 = parse_url("http://example.com/path")
+        url3 = parse_url("http://example.com/other")
 
         url_set = {url1, url2, url3}
         assert len(url_set) == 2  # url1 and url2 are equal
@@ -323,13 +323,12 @@ class TestEdgeCases:
     def test_type_validation_url_not_string(self):
         """Ensure TypeError is raised for non-string URL."""
         with pytest.raises(TypeError, match="must be a string"):
-            parse_url(12345)  # type: ignore
-
+            parse_url_unsafe(12345)  # type: ignore
 
     def test_type_validation_strict_not_bool(self):
-        """Ensure TypeError is raised for non-bool strict."""
+        """Ensure TypeError is raised for non-bool strict in parse_url_unsafe."""
         with pytest.raises(TypeError, match="must be a boolean"):
-            parse_url("http://example.com", strict="yes")  # type: ignore
+            parse_url_unsafe("http://example.com", strict="yes")  # type: ignore
 
 
 class TestHomographDetection:

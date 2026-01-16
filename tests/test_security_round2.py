@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 from urlp import (
     parse_url,
     parse_url_strict,
+    parse_url_unsafe,
     URL,
     InvalidURLError,
     URLParseError,
@@ -138,12 +139,12 @@ class TestDNSRebindingProtection:
 
     def test_check_dns_flag_separate_from_strict(self):
         """check_dns should work independently of strict mode."""
-        # This should work - strict doesn't block public domains
-        url = parse_url("http://google.com/", strict=True)
+        # parse_url is now always strict - use parse_url_unsafe for non-strict
+        url = parse_url_unsafe("http://google.com/", strict=True)
         assert url.host == "google.com"
 
         # check_dns is a separate flag
-        url2 = parse_url("http://google.com/", check_dns=False)
+        url2 = parse_url_unsafe("http://google.com/", check_dns=False)
         assert url2.host == "google.com"
 
     @patch('urlp._security.socket.getaddrinfo')
@@ -243,8 +244,8 @@ class TestSecureDefaults:
         assert url.frozen
 
     def test_urls_always_immutable(self):
-        """URLs are now always immutable regardless of frozen parameter."""
-        url = parse_url_strict("http://example.com/path", frozen=False)
+        """URLs are now always immutable - frozen parameter was removed."""
+        url = parse_url_strict("http://example.com/path")
         # URLs are always immutable now
         assert url.frozen
 
@@ -394,7 +395,9 @@ class TestAuditLogging:
         set_audit_callback(callback)
 
         with pytest.raises((URLParseError, InvalidURLError)):
-            parse_url("http://127.0.0.1/", strict=True)
+            # parse_url is now strict by default, use parse_url_unsafe with strict=True
+            # or just use parse_url which is now strict
+            parse_url("http://127.0.0.1/")
 
         callback.assert_called_once()
         args = callback.call_args[0]
@@ -506,12 +509,13 @@ class TestCheckDNSFlag:
 
     def test_check_dns_independent_of_strict(self):
         """check_dns and strict should work independently."""
+        # parse_url is always strict now, use parse_url_unsafe for non-strict
         # strict=True, check_dns=False
-        url1 = parse_url("http://google.com/", strict=True, check_dns=False)
+        url1 = parse_url_unsafe("http://google.com/", strict=True, check_dns=False)
         assert url1._strict
         assert not url1._check_dns
 
         # strict=False, check_dns=True (on public IP)
-        url2 = parse_url("http://8.8.8.8/", strict=False, check_dns=True)
+        url2 = parse_url_unsafe("http://8.8.8.8/", strict=False, check_dns=True)
         assert not url2._strict
         assert url2._check_dns

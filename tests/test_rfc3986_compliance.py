@@ -5,7 +5,7 @@ This test suite covers the examples and edge cases specified in RFC 3986
 to ensure full compliance with the URI specification.
 """
 import pytest
-from urlp import parse_url, compose_url, URL
+from urlp import parse_url, parse_url_unsafe, compose_url, URL
 from urlp._parser import Parser
 from urlp._builder import Builder
 from urlp.exceptions import InvalidURLError
@@ -32,7 +32,8 @@ class TestRFC3986Examples:
 
     def test_ldap_example(self):
         """RFC 3986 example with query"""
-        url = parse_url("ldap://[2001:db8::7]/c=GB?objectClass?one")
+        # Use parse_url_unsafe for RFC compliance tests with non-public IPs
+        url = parse_url_unsafe("ldap://[2001:db8::7]/c=GB?objectClass?one")
         assert url.scheme == "ldap"
         assert url.host == "[2001:db8::7]"
         assert url.path == "/c=GB"
@@ -48,7 +49,8 @@ class TestRFC3986Examples:
 
     def test_telnet_example(self):
         """RFC 3986 example: telnet://192.0.2.16:80/"""
-        url = parse_url("telnet://192.0.2.16:80/")
+        # Use parse_url_unsafe for RFC compliance tests with documentation IPs
+        url = parse_url_unsafe("telnet://192.0.2.16:80/")
         assert url.scheme == "telnet"
         assert url.host == "192.0.2.16"
         assert url.port == 80
@@ -96,6 +98,7 @@ class TestPathNormalization:
 
     def test_dot_segments_removal(self):
         """Test removal of . and .. segments"""
+        # Use parse_url_unsafe for RFC compliance tests with path traversal patterns
         cases = [
             ("http://example.com/a/b/c/./../../g", "/a/g"),
             ("http://example.com/./foo", "/foo"),
@@ -107,12 +110,13 @@ class TestPathNormalization:
             ("http://example.com/foo/../../bar", "/bar"),
         ]
         for input_url, expected_path in cases:
-            url = parse_url(input_url)
+            url = parse_url_unsafe(input_url)
             assert url.path == expected_path, f"Failed for {input_url}"
 
     def test_multiple_consecutive_slashes(self):
         """Multiple slashes should be normalized"""
-        url = parse_url("http://example.com//a///b//c")
+        # Use parse_url_unsafe for RFC compliance tests with path patterns
+        url = parse_url_unsafe("http://example.com//a///b//c")
         assert url.path == "/a/b/c"
 
     def test_trailing_slash_preservation(self):
@@ -158,24 +162,28 @@ class TestAuthorityComponent:
 
     def test_ipv4_address(self):
         """IPv4 address as host"""
-        url = parse_url("http://192.168.1.1:8080/")
+        # Use parse_url_unsafe for RFC compliance tests with private IPs
+        url = parse_url_unsafe("http://192.168.1.1:8080/")
         assert url.host == "192.168.1.1"
         assert url.port == 8080
 
     def test_ipv6_address_simple(self):
         """IPv6 address as host"""
-        url = parse_url("http://[2001:db8::1]/")
+        # Use parse_url_unsafe for RFC compliance tests with documentation IPs
+        url = parse_url_unsafe("http://[2001:db8::1]/")
         assert url.host == "[2001:db8::1]"
 
     def test_ipv6_address_with_port(self):
         """IPv6 address with port"""
-        url = parse_url("http://[2001:db8::1]:8080/")
+        # Use parse_url_unsafe for RFC compliance tests with documentation IPs
+        url = parse_url_unsafe("http://[2001:db8::1]:8080/")
         assert url.host == "[2001:db8::1]"
         assert url.port == 8080
 
     def test_ipv6_compressed_zeros(self):
         """IPv6 with compressed zeros"""
-        url = parse_url("http://[::1]/")
+        # Use parse_url_unsafe for RFC compliance tests with loopback
+        url = parse_url_unsafe("http://[::1]/")
         assert url.host == "[::1]"
 
     def test_port_default_http(self):
@@ -369,10 +377,11 @@ class TestCompositionRoundTrip:
 
     def test_ipv6_url_roundtrip(self):
         """IPv6 URL should round-trip"""
+        # Use parse_url_unsafe for RFC compliance tests with documentation IPs
         original = "http://[2001:db8::1]:8080/path"
-        url = parse_url(original)
+        url = parse_url_unsafe(original)
         reconstructed = url.as_string()
-        url2 = parse_url(reconstructed)
+        url2 = parse_url_unsafe(reconstructed)
         assert url2.host == "[2001:db8::1]"
         assert url2.port == 8080
 
@@ -417,20 +426,24 @@ class TestPathSegmentNormalization:
 
     def test_double_dot_at_root(self):
         """.. at root should not go above root"""
-        url = parse_url("http://example.com/../foo")
+        # Use parse_url_unsafe for RFC compliance tests with path traversal patterns
+        url = parse_url_unsafe("http://example.com/../foo")
         assert url.path == "/foo"
 
     def test_multiple_double_dots(self):
         """Multiple .. segments"""
-        url = parse_url("http://example.com/a/b/c/../../d")
+        # Use parse_url_unsafe for RFC compliance tests with path traversal patterns
+        url = parse_url_unsafe("http://example.com/a/b/c/../../d")
         assert url.path == "/a/d"
 
     def test_dot_segments_with_trailing_slash(self):
         """Dot segments with trailing slash"""
-        url = parse_url("http://example.com/a/b/./c/../")
+        # Use parse_url_unsafe for RFC compliance tests with path traversal patterns
+        url = parse_url_unsafe("http://example.com/a/b/./c/../")
         assert url.path == "/a/b/"
 
     def test_only_dots(self):
         """Path with only dots"""
-        url = parse_url("http://example.com/./././")
+        # Use parse_url_unsafe for RFC compliance tests with path traversal patterns
+        url = parse_url_unsafe("http://example.com/./././")
         assert url.path == "/"

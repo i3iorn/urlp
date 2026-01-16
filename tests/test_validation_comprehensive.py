@@ -4,7 +4,7 @@ Tests edge cases, security considerations, and boundary conditions.
 """
 import pytest
 from urlp._validation import Validator
-from urlp import parse_url
+from urlp import parse_url, parse_url_unsafe
 from urlp.exceptions import InvalidURLError, URLParseError
 
 
@@ -331,8 +331,9 @@ class TestSecurityConsiderations:
 
     def test_unicode_security(self):
         """Test unicode homograph attack prevention via IDNA"""
-        # IDNA encoding should handle this
-        url = parse_url("http://раypal.com/")  # Cyrillic 'a'
+        # parse_url now blocks mixed scripts by default
+        # Use parse_url_unsafe to test IDNA encoding still works
+        url = parse_url_unsafe("http://раypal.com/")  # Cyrillic 'a'
         # Should be punycode encoded
         assert "xn--" in url.host
 

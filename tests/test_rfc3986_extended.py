@@ -11,7 +11,7 @@ This test suite focuses on areas not fully covered in test_rfc3986_compliance.py
 - Scheme-specific validation
 """
 import pytest
-from urlp import parse_url, compose_url, URL
+from urlp import parse_url, parse_url_unsafe, compose_url, URL
 from urlp._parser import Parser
 from urlp._builder import Builder
 from urlp._validation import Validator
@@ -89,14 +89,15 @@ class TestPercentEncodingRFC3986:
 
     def test_ipv6_with_zone_id_percent_encoded(self):
         """RFC 6874: IPv6 zone IDs must be percent-encoded"""
+        # Use parse_url_unsafe for link-local IPv6 addresses
         # Correct: zone ID is percent-encoded as %25eth0
-        url = parse_url("http://[fe80::1%25eth0]/")
+        url = parse_url_unsafe("http://[fe80::1%25eth0]/")
         assert "[fe80::1%25eth0]" in url.host or url.host == "[fe80::1%25eth0]"
 
     def test_ipv6_zone_id_raw_percent_invalid(self):
         """Raw % (not %25) in IPv6 literal is invalid"""
         with pytest.raises(InvalidURLError):
-            parse_url("http://[fe80::1%eth0]/")
+            parse_url_unsafe("http://[fe80::1%eth0]/")
 
 
 class TestQueryStringRFC3986:
@@ -168,17 +169,20 @@ class TestPathSegmentRFC3986:
 
     def test_path_double_dot_segment(self):
         """Double dot represents parent directory"""
-        url = parse_url("http://example.com/a/b/../c")
+        # Use parse_url_unsafe for path traversal pattern tests
+        url = parse_url_unsafe("http://example.com/a/b/../c")
         assert url.path == "/a/c"
 
     def test_path_double_dot_at_root(self):
         """.. at root should not escape root"""
-        url = parse_url("http://example.com/../a")
+        # Use parse_url_unsafe for path traversal pattern tests
+        url = parse_url_unsafe("http://example.com/../a")
         assert url.path == "/a"
         assert not url.path.startswith("/../")
 
     def test_path_complex_normalization(self):
         """RFC 3986 § 5.2.4: Remove dot segments"""
+        # Use parse_url_unsafe for path traversal pattern tests
         cases = [
             ("http://example.com/a/b/c/./../../g", "/a/g"),
             ("http://example.com/./a", "/a"),
@@ -187,7 +191,7 @@ class TestPathSegmentRFC3986:
             ("http://example.com/a/b/c/", "/a/b/c/"),
         ]
         for input_url, expected_path in cases:
-            url = parse_url(input_url)
+            url = parse_url_unsafe(input_url)
             assert url.path == expected_path, f"Failed for {input_url}"
 
     def test_path_trailing_slash_significance(self):
@@ -411,7 +415,8 @@ class TestNormalizationRFC3986:
 
     def test_path_normalization_dot_segments(self):
         """Path normalization: remove . and .. segments"""
-        url = parse_url("http://example.com/a/./b/../c")
+        # Use parse_url_unsafe for path traversal pattern tests
+        url = parse_url_unsafe("http://example.com/a/./b/../c")
         assert url.path == "/a/c"
         assert ".." not in url.path
         assert "/." not in url.path
@@ -496,7 +501,8 @@ class TestValidationStrictness:
 
     def test_null_bytes_rejected(self):
         """Null bytes should be rejected"""
-        with pytest.raises(URLParseError):
+        # parse_url now does security checks which also catch null bytes
+        with pytest.raises((URLParseError, InvalidURLError)):
             parse_url("http://example.com/path\x00null")
 
     def test_invalid_percent_encoding_format(self):
@@ -527,11 +533,11 @@ class TestValidationStrictness:
         # Valid domain
         assert parse_url("http://example.com/").host == "example.com"
 
-        # Valid IPv4
-        assert parse_url("http://192.168.1.1/").host == "192.168.1.1"
+        # Valid IPv4 - use parse_url_unsafe for private IPs
+        assert parse_url_unsafe("http://192.168.1.1/").host == "192.168.1.1"
 
-        # Valid IPv6
-        assert parse_url("http://[::1]/").host == "[::1]"
+        # Valid IPv6 - use parse_url_unsafe for loopback
+        assert parse_url_unsafe("http://[::1]/").host == "[::1]"
 
 
 
