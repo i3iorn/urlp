@@ -6,7 +6,7 @@ used throughout the library for structured data passing.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Union
+from typing import Any, List, Optional, Tuple
 
 QueryPairs = List[Tuple[str, Optional[str]]]
 
@@ -57,17 +57,17 @@ class URLComponents:
     fragment: Optional[str] = None
     query_pairs: QueryPairs = field(default_factory=list)
 
-    def with_updates(self, **kwargs: Optional[str]) -> 'URLComponents':
+    def with_updates(self, **kwargs: Any) -> 'URLComponents':
         """Create a new URLComponents with specified fields updated."""
-
-        scheme = kwargs["scheme"] or self.scheme
-        userinfo = kwargs["userinfo"] or self.userinfo
-        host = kwargs["host"] or self.host
-        port = int(kwargs["port"] if "port" in kwargs else self.port)
-        path = kwargs["path"] or self.path
-        query = kwargs["query"] or self.query
-        fragment = kwargs["fragment"] or self.fragment
-        query_pairs = kwargs["query_pairs"] if "query_pairs" in kwargs else self.query_pairs
+        scheme = kwargs.get("scheme", self.scheme)
+        userinfo = kwargs.get("userinfo", self.userinfo)
+        host = kwargs.get("host", self.host)
+        port_val = kwargs.get("port", self.port)
+        port = int(port_val) if port_val is not None else None
+        path = kwargs.get("path", self.path)
+        query = kwargs.get("query", self.query)
+        fragment = kwargs.get("fragment", self.fragment)
+        query_pairs = kwargs.get("query_pairs", self.query_pairs)
         return URLComponents(
             scheme=scheme,
             userinfo=userinfo,
