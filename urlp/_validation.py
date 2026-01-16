@@ -13,6 +13,7 @@ from .constants import (
     MAX_HOST_LENGTH,
     MAX_SCHEME_LENGTH,
     MAX_FRAGMENT_LENGTH,
+    MAX_IPV6_STRING_LENGTH,
     STANDARD_PORTS,
 )
 from ._patterns import PATTERNS
@@ -28,11 +29,11 @@ _idna_module: Optional[ModuleType] = None
 _HAS_IDNA: bool = False
 
 try:
-    import idna as _idna_import
+    import idna as _idna_import  # noqa: F401
     _idna_module = _idna_import
     _HAS_IDNA = True
 except ImportError:
-    pass
+    _idna_import = None  # type: ignore[assignment,misc]
 
 
 class Validator:
@@ -108,7 +109,7 @@ class Validator:
     @lru_cache(maxsize=512)
     def is_valid_ipv6(ip: str) -> bool:
         """Validate IPv6 address (bracketed format)."""
-        if not isinstance(ip, str) or len(ip) > 128:
+        if not isinstance(ip, str) or len(ip) > MAX_IPV6_STRING_LENGTH:
             return False
         if not ip.startswith("[") or not ip.endswith("]"):
             return False
