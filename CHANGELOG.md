@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 ## [0.2.0] - 2026-01-16
 
 ### Breaking Changes
+- **`parse_url()` is now SECURE BY DEFAULT** - All security checks are enabled:
+  - SSRF protection (blocks private IPs, localhost, link-local)
+  - Path traversal detection
+  - Double-encoding detection
+  - Open redirect detection
+  - Homograph attack detection
+- **New `parse_url_unsafe()`** - Use this when you need to parse URLs without security checks (e.g., internal/development URLs)
+- **`parse_url_strict()` is now an alias for `parse_url()`** - Since secure is the default
 - **URL is now immutable by default** - Removed mutable setters (`.scheme =`, `.host =`, etc.). Use `with_*` methods instead:
   - `url.with_scheme("https")` instead of `url.scheme = "https"`
   - `url.with_host("example.com")` instead of `url.host = "example.com"`
@@ -15,13 +23,9 @@ All notable changes to this project will be documented in this file.
 - `freeze()` and `thaw()` are now no-ops (URLs are always immutable)
 - `frozen` parameter in `URL()` constructor is accepted but ignored
 - Removed `set_query_params()` method - use `url.copy(query_pairs=[...])` instead
-- Removed `add_param()`, `remove_param()`, `merge_params()` - use `with_query_param()` and `without_query_param()`
 
 ### Added
-- **New simplified API:**
-  - `parse(url, *, strict=False, check_dns=False)` - Main parsing function
-  - `parse_strict(url, *, check_dns=False)` - Parse with all security checks
-  - `build(scheme, host, *, port, path, query, fragment, userinfo)` - Build URL from components
+- **`parse_url_unsafe()`** - Parse URLs without security checks (for trusted sources)
 - New `_security.py` module consolidating all security checks
 - New `_patterns.py` module centralizing all regex patterns
 - New `_components.py` module with `ParseResult` and `URLComponents` dataclasses
@@ -39,30 +43,30 @@ All notable changes to this project will be documented in this file.
 - `_ssrf.py` module removed (merged into `_security.py`)
 - Version bumped to 0.2.0
 
-### Deprecated
-- `parse_url()` - Use `parse()` instead
-- `parse_url_strict()` - Use `parse_strict()` instead  
-- `compose_url()` - Use `build()` instead
-
 ### Migration Guide
 
-**Before (v0.1.x):**
+**Before (v0.1.x) - Non-strict parsing was default:**
 ```python
-from urlp import parse_url, parse_url_strict, compose_url
+from urlp import parse_url, parse_url_strict
 
-url = parse_url("https://example.com", frozen=False)
-url.host = "other.com"
-url.port = 8080
-url.freeze()
+# Non-strict - allowed everything
+url = parse_url("http://localhost/admin")  # Worked
+
+# Had to explicitly use strict for security
+safe = parse_url_strict("https://api.example.com/")
 ```
 
-**After (v0.2.0):**
+**After (v0.2.0) - Secure parsing is default:**
 ```python
-from urlp import parse, parse_strict, build
+from urlp import parse_url, parse_url_unsafe
 
-url = parse("https://example.com")
-url = url.with_host("other.com").with_port(8080)
-# URL is already immutable, no need to freeze
+# Secure by default - blocks dangerous URLs
+url = parse_url("https://api.example.com/")  # Safe URLs work
+
+# parse_url("http://localhost/admin")  # Now raises InvalidURLError!
+
+# Use parse_url_unsafe for internal/trusted URLs
+internal = parse_url_unsafe("http://localhost/admin")
 ```
 
 ## [0.1.2] - 2026-01-15
