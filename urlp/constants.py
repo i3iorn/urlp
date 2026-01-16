@@ -42,10 +42,11 @@ MAX_PATH_LENGTH = 8192
 MAX_QUERY_LENGTH = 65536
 MAX_FRAGMENT_LENGTH = 8192
 MAX_USERINFO_LENGTH = 256
+MAX_IPV6_STRING_LENGTH = 128  # Max length for bracketed IPv6 with zone ID
 
 # Blocked hostnames for SSRF protection
 # This is a blocklist of dangerous hostnames, not bind addresses
-BLOCKED_HOSTNAMES: frozenset[str] = frozenset({  # nosec B104
+BLOCKED_HOSTNAMES: FrozenSet[str] = frozenset({  # nosec B104
     # Localhost variations
     "localhost",
     "localhost.localdomain",
@@ -93,6 +94,7 @@ __all__ = [
     "MAX_QUERY_LENGTH",
     "MAX_FRAGMENT_LENGTH",
     "MAX_USERINFO_LENGTH",
+    "MAX_IPV6_STRING_LENGTH",
     "BLOCKED_HOSTNAMES",
     "DEFAULT_DNS_TIMEOUT",
     "PASSWORD_MASK",
