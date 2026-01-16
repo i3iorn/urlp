@@ -4,7 +4,7 @@ from __future__ import annotations
 import ipaddress
 import socket
 from functools import lru_cache
-from typing import Optional, Set, Tuple
+from typing import Optional, Set, Tuple, Union
 from urllib.parse import unquote
 
 from .constants import BLOCKED_HOSTNAMES, DEFAULT_DNS_TIMEOUT
@@ -15,7 +15,7 @@ from ._patterns import PATTERNS
 # IP Address Safety Checks
 # =============================================================================
 
-def _is_ip_safe(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+def _is_ip_safe(ip: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]) -> bool:
     """Check if IP is safe (not private/reserved)."""
     return not (ip.is_private or ip.is_loopback or ip.is_multicast or ip.is_reserved or ip.is_link_local)
 
