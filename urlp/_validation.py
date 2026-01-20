@@ -215,7 +215,7 @@ class Validator:
 
     @staticmethod
     def has_path_traversal(path: str) -> bool:
-        """Detect path traversal attempts."""
+        """Detect potential path traversal attempts."""
         from . import _security
         return _security.has_path_traversal(path)
 
@@ -224,6 +224,17 @@ class Validator:
         """Check if hostname resolves to safe (non-private) IPs."""
         from . import _security
         return _security.check_dns_rebinding(host, timeout)
+
+    @staticmethod
+    def is_phishing_domain(host: str) -> bool:
+        """(Backward-compatible) Check if hostname is listed in the phishing DB.
+
+        Note: name intentionally preserves the misspelling used across the
+        public API ("phishing") so existing callers in the codebase keep
+        working. Delegates to the _security.check_against_phishing_db helper.
+        """
+        from . import _security
+        return _security.check_against_phishing_db(host)
 
     # =========================================================================
     # Cache management

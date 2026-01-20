@@ -21,7 +21,7 @@ class URL:
     __slots__ = (
         'recognized_scheme', '_parser', '_builder', '_strict', '_debug',
         '_check_dns', '_scheme', '_userinfo', '_host', '_port', '_path',
-        '_query', '_fragment', '_query_pairs'
+        '_query', '_fragment', '_query_pairs', '_check_phishing'
     )
 
     def __init__(
@@ -30,7 +30,8 @@ class URL:
         builder: Optional[Builder] = None,
         strict: bool = False,
         debug: bool = False,
-        check_dns: bool = False
+        check_dns: bool = False,
+        check_phishing: bool = False,
     ) -> None:
         if not isinstance(url, str):
             raise TypeError(f"URL must be a string, got {type(url).__name__}")
@@ -40,12 +41,15 @@ class URL:
             raise TypeError(f"debug must be a boolean, got {type(debug).__name__}")
         if not isinstance(check_dns, bool):
             raise TypeError(f"check_dns must be a boolean, got {type(check_dns).__name__}")
+        if not isinstance(check_phishing, bool):
+            raise TypeError(f"check_phishing must be a boolean, got {type(check_phishing).__name__}")
 
         self._parser = parser if parser is not None else Parser()
         self._builder = builder if builder is not None else Builder()
         self._strict = strict
         self._debug = debug
         self._check_dns = check_dns
+        self._check_phishing = check_phishing
         self.recognized_scheme: Optional[bool] = None
 
         self._parse_and_validate(url)
@@ -80,6 +84,8 @@ class URL:
             raise InvalidURLError("Host poses SSRF risk and is disallowed in strict mode.")
         if self._check_dns and self._host and not Validator.resolve_host_safe(self._host):
             raise InvalidURLError("Host resolves to private/reserved IP address.")
+        if self._check_phishing and self._host and Validator.is_phishing_domain(self._host):
+            raise InvalidURLError("Host is identified as a phishing domain.")
 
     def _apply_parsed(self, components: Mapping[str, Optional[Any]]) -> None:
         """Apply parsed components to instance."""

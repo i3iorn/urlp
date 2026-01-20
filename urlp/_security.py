@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ipaddress
+import requests
 import socket
 from functools import lru_cache
 from typing import Optional, Set, Tuple, Union
@@ -197,6 +198,29 @@ def check_dns_rebinding(host: str, timeout: Optional[float] = None) -> bool:
         return _verify_connection_safe(addr_info, timeout)
     except (socket.gaierror, socket.timeout, OSError):
         return False
+
+PHISHING_SET = None
+
+def check_against_phishing_db(host: str) -> bool:
+    """Check if hostname is in known phishing database."""
+    global PHISHING_SET
+    if PHISHING_SET is None:
+        PHISHING_SET = _download_phishing_db()
+    if not isinstance(host, str):
+        return False
+    host_lower = host.lower().rstrip('.')
+    return host_lower in PHISHING_SET
+
+
+def _download_phishing_db() -> Set[str]:
+    """Download and return a set of known phishing hostnames."""
+    PHISHING_DB_URL = "https://phish.co.za/latest/ALL-phishing-domains.lst"
+    try:
+        response = requests.get(PHISHING_DB_URL, timeout=5)
+        response.raise_for_status()
+        return set(line.strip().lower() for line in response.text.splitlines() if line.strip())
+    except requests.RequestException:
+        return set()
 
 
 def has_mixed_scripts(host: str) -> bool:

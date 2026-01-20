@@ -62,7 +62,8 @@ from .constants import (
 def parse_url(
     url: str, *,
     allow_custom_scheme: bool = False,
-    check_dns: bool = False
+    check_dns: bool = False,
+    check_phishing: bool = False
 ) -> URL:
     """Parse URL with security checks enabled (SECURE BY DEFAULT).
 
@@ -72,6 +73,7 @@ def parse_url(
     - Path traversal detection
     - Open redirect detection
     - Homograph attack detection
+    - Phishing domain checks (if enabled) (https://phish.co.za/latest/ALL-phishing-domains.lst)
 
     For parsing URLs without security checks (e.g., internal/development URLs),
     use `parse_url_unsafe()` instead.
@@ -80,6 +82,7 @@ def parse_url(
         url: The URL string to parse.
         allow_custom_scheme: If True, allow non-standard schemes.
         check_dns: If True, also perform DNS resolution checks.
+        check_phishing: If True, check for known phishing domains.
 
     Returns:
         An immutable URL object.
@@ -90,7 +93,7 @@ def parse_url(
     validate_url_security(url)
     parser = Parser()
     parser.custom_scheme = allow_custom_scheme
-    return URL(url, parser=parser, strict=True, check_dns=check_dns)
+    return URL(url, parser=parser, strict=True, check_dns=check_dns, check_phishing=check_phishing)
 
 
 def parse_url_unsafe(
