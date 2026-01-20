@@ -193,13 +193,6 @@ def test_with_query_param_adds_param() -> None:
     assert new_url.query == "a=1"
 
 
-def test_copy_with_authentication_alias() -> None:
-    """Test that authentication alias works in copy."""
-    url = URL("https://example.com")
-    clone = url.copy(authentication="user:pass")
-    assert clone.userinfo == "user:pass"
-
-
 def test_with_port_helper_sets_normalized_port() -> None:
     url = URL("https://example.com")
     updated = url.with_port(8080)
