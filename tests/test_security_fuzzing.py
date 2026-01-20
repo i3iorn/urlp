@@ -40,8 +40,7 @@ except ImportError:
         pass
 
 from urlp import parse_url, parse_url_unsafe, URLParseError, InvalidURLError, Validator
-from urlp._validation import Validator as ValidatorClass
-from urlp._parser import _is_valid_userinfo
+from urlp._validation import Validator as ValidatorClass, is_valid_userinfo
 
 
 class TestParserFuzzing:
@@ -95,7 +94,7 @@ class TestParserFuzzing:
         backtracking on inputs like "a:" + "b" * 100000 + "@".
         """
         # This should complete quickly without hanging
-        result = _is_valid_userinfo(userinfo_input)
+        result = is_valid_userinfo(userinfo_input)
         assert isinstance(result, bool)
 
 
@@ -114,7 +113,7 @@ class TestReDoSProtection:
         attack_string = "a:" + "b" * 100000 + "@"
 
         start = time.perf_counter()
-        result = _is_valid_userinfo(attack_string)
+        result = is_valid_userinfo(attack_string)
         elapsed = time.perf_counter() - start
 
         # Should complete in well under 1 second (old regex would hang)
@@ -130,7 +129,7 @@ class TestReDoSProtection:
         long_password = "user:" + "x" * 100000
 
         start = time.perf_counter()
-        result = _is_valid_userinfo(long_password)
+        result = is_valid_userinfo(long_password)
         elapsed = time.perf_counter() - start
 
         # Should complete quickly
@@ -140,19 +139,19 @@ class TestReDoSProtection:
 
     def test_userinfo_valid_cases(self):
         """Ensure valid userinfo cases still work correctly."""
-        assert _is_valid_userinfo("user") is True
-        assert _is_valid_userinfo("user:pass") is True
-        assert _is_valid_userinfo("user:") is True  # Empty password is valid
-        assert _is_valid_userinfo("user:pass:word") is True  # Multiple colons in password
-        assert _is_valid_userinfo("a:b") is True
+        assert is_valid_userinfo("user") is True
+        assert is_valid_userinfo("user:pass") is True
+        assert is_valid_userinfo("user:") is True  # Empty password is valid
+        assert is_valid_userinfo("user:pass:word") is True  # Multiple colons in password
+        assert is_valid_userinfo("a:b") is True
 
     def test_userinfo_invalid_cases(self):
         """Ensure invalid userinfo cases are rejected."""
-        assert _is_valid_userinfo("") is False  # Empty
-        assert _is_valid_userinfo(":pass") is False  # Empty username
-        assert _is_valid_userinfo("user@host") is False  # Contains @
-        assert _is_valid_userinfo("user:pass@") is False  # Contains @
-        assert _is_valid_userinfo("@") is False  # Just @
+        assert is_valid_userinfo("") is False  # Empty
+        assert is_valid_userinfo(":pass") is False  # Empty username
+        assert is_valid_userinfo("user@host") is False  # Contains @
+        assert is_valid_userinfo("user:pass@") is False  # Contains @
+        assert is_valid_userinfo("@") is False  # Just @
 
 
 class TestValidatorFuzzing:
