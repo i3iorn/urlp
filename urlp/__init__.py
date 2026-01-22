@@ -1,6 +1,23 @@
-"""urlp - Lightweight URL parsing and building helpers.
+"""urlp - Lightweight, secure, and RFC-compliant URL parsing and building.
 
-This module provides the public API for URL parsing, building, and validation.
+This package provides:
+    - Immutable URL objects (`URL`)
+    - Secure and unsafe parsing entry points (`parse_url`, `parse_url_unsafe`)
+    - URL building helpers (`build`, `compose_url`)
+    - Relative URL utilities
+    - Rich exception hierarchy for error handling
+    - Security and validation helpers
+    - Constants for limits and defaults
+
+Main entry points:
+    - parse_url: Secure parsing with SSRF, phishing, and traversal protection
+    - parse_url_unsafe: Parsing without security checks (trusted sources only)
+    - build: Build a URL string from components
+    - compose_url: Build a URL string from a dict of components
+    - URL: Immutable URL object
+    - All exceptions and constants are re-exported for convenience
+
+See function/class docstrings for details.
 """
 from __future__ import annotations
 
