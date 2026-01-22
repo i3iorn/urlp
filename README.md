@@ -117,6 +117,123 @@ parts = parse_relative_reference("./assets/logo.svg?cache=bust#hero")
 rebuilt = build_relative_reference(parts["path"], query=parts["query"], fragment=parts["fragment"])
 ```
 
+## Usage Examples and Edge Case Handling
+
+### Basic Usage
+
+```python
+from urlp import parse_url, build
+
+# Parse a standard URL
+url = parse_url("https://user:pass@example.com:8080/download?token=abc")
+print(url.netloc)             # user:pass@example.com:8080
+print(url.effective_port)     # 8080
+
+# Build a URL string from components
+url_str = build(
+    "https",
+    "example.com",
+    port=8443,
+    path="/api/data",
+    query="x=1&x=2",
+    fragment="section",
+)
+print(url_str)  # https://example.com:8443/api/data?x=1&x=2#section
+```
+
+### Edge Case Handling
+
+#### 1. Invalid Host
+```python
+from urlp import parse_url, HostValidationError
+try:
+    parse_url("https://exa$mple.com/")
+except HostValidationError as e:
+    print(f"Host error: {e}")
+```
+
+#### 2. Invalid Port
+```python
+from urlp import parse_url, PortValidationError
+try:
+    parse_url("https://example.com:abc/")
+except PortValidationError as e:
+    print(f"Port error: {e}")
+```
+
+#### 3. Path Traversal
+```python
+from urlp import parse_url, InvalidURLError
+try:
+    parse_url("https://example.com/../../etc/passwd")
+except InvalidURLError as e:
+    print(f"Path traversal blocked: {e}")
+```
+
+#### 4. Double-Encoded Characters
+```python
+from urlp import parse_url, InvalidURLError
+try:
+    parse_url("https://example.com/%252e%252e/")
+except InvalidURLError as e:
+    print(f"Double-encoding blocked: {e}")
+```
+
+#### 5. Mixed Unicode Scripts (Homograph Attack)
+```python
+from urlp import parse_url, InvalidURLError
+try:
+    parse_url("https://exаmple.com/")  # Note: Cyrillic 'а'
+except InvalidURLError as e:
+    print(f"Homograph attack blocked: {e}")
+```
+
+#### 6. Empty or Non-String Input
+```python
+from urlp import parse_url, InvalidURLError
+try:
+    parse_url("")
+except InvalidURLError as e:
+    print(f"Empty input blocked: {e}")
+try:
+    parse_url(12345)
+except InvalidURLError as e:
+    print(f"Non-string input blocked: {e}")
+```
+
+#### 7. Query Parameter Edge Cases
+```python
+from urlp import parse_url
+url = parse_url("https://example.com/?a=1&&b=2")
+print(url.query_params)  # [('a', '1'), ('b', '2')]
+url2 = parse_url("https://example.com/?=value")  # Raises InvalidURLError
+```
+
+#### 8. IPv6 and IDNA Handling
+```python
+from urlp import parse_url
+url = parse_url("http://[2001:db8::1]:8080/")
+print(url.host)  # [2001:db8::1]
+url_idna = parse_url("http://xn--e1afmkfd.xn--p1ai/")
+print(url_idna.host)  # xn--e1afmkfd.xn--p1ai
+```
+
+#### 9. SSRF and Security Edge Cases
+```python
+from urlp import parse_url, InvalidURLError
+for test_url in [
+    "http://localhost/",
+    "http://127.0.0.1/",
+    "http://192.168.1.1/",
+    "http://[::1]/",
+    "http://printer.local/",
+]:
+    try:
+        parse_url(test_url)
+    except InvalidURLError as e:
+        print(f"Blocked SSRF risk: {test_url} -> {e}")
+```
+
 ## Security Features
 
 urlp includes comprehensive security features to protect against common URL-based attacks.
@@ -483,4 +600,3 @@ When releasing, consider bumping the package version in `pyproject.toml` to refl
 - Component length limits for DoS prevention
 
 The repository includes comprehensive tests for all security features, validation edge cases, and IDNA handling.
-
