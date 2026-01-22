@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import ipaddress
-import requests
 import socket
 from functools import lru_cache
 from typing import Optional, Set, Tuple, Union
+from urllib import request
 from urllib.parse import unquote
 
 from .constants import BLOCKED_HOSTNAMES, DEFAULT_DNS_TIMEOUT
@@ -216,10 +216,13 @@ def _download_phishing_db() -> Set[str]:
     """Download and return a set of known phishing hostnames."""
     PHISHING_DB_URL = "https://phish.co.za/latest/ALL-phishing-domains.lst"
     try:
-        response = requests.get(PHISHING_DB_URL, timeout=5)
-        response.raise_for_status()
-        return set(line.strip().lower() for line in response.text.splitlines() if line.strip())
-    except requests.RequestException:
+        response = request.urlopen(PHISHING_DB_URL, timeout=DEFAULT_DNS_TIMEOUT)
+        if response.status != 200:
+            return set()
+        content = response.data.decode('utf-8', errors='ignore')
+        hostnames = {line.strip().lower() for line in content.splitlines() if line.strip()}
+        return hostnames
+    except Exception:
         return set()
 
 

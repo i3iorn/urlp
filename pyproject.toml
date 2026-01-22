@@ -17,6 +17,7 @@ keywords = ["url", "parser", "builder", "rfc3986", "validation", "idna", "ipv6"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
   "Natural Language :: English",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
