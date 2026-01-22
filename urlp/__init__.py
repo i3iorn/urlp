@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Optional
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 # Exceptions
 from .exceptions import (
