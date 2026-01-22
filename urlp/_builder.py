@@ -7,9 +7,7 @@ from functools import lru_cache
 from .constants import DEFAULT_PORTS, OfficialSchemes
 from .exceptions import (
     URLBuildError,
-    NetlocBuildingError,
     PortValidationError,
-    MissingHostError,
 )
 from ._patterns import PATTERNS
 
@@ -61,7 +59,7 @@ class Builder:
     def build_netloc(self, userinfo: Optional[str], host: Optional[str], port: Optional[int], scheme: Optional[str]) -> str:
         if not host:
             if port is not None:
-                raise PortValidationError("Port cannot be set without a host.")
+                raise PortValidationError("Port cannot be set without a host.", value=port, component="port")
             return userinfo or ""
         parts = []
         if userinfo:
@@ -127,7 +125,7 @@ class Builder:
             key_raw, sep, value_raw = chunk.partition("=")
             key = unquote_plus(key_raw)
             if not key:
-                raise URLBuildError("Query keys must be non-empty.")
+                raise URLBuildError("Query keys must be non-empty.", value=chunk, component="query")
             value = unquote_plus(value_raw) if sep else None
             pairs.append((key, value))
         return pairs
@@ -147,15 +145,21 @@ class Builder:
         if not params:
             return ""
         encoded: List[str] = []
+        # Cache for percent-encoded keys/values
+        encode_cache = {}
+        def encode(val):
+            if val in encode_cache:
+                return encode_cache[val]
+            encoded_val = quote_plus(val, safe=query_safe)
+            encoded_val = _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded_val)
+            encode_cache[val] = encoded_val
+            return encoded_val
         for key, value in params:
-            encoded_key = quote_plus(key, safe=query_safe)
-            # normalize percent-encoding to uppercase using pre-compiled pattern
-            encoded_key = _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded_key)
+            encoded_key = encode(key)
             if value is None:
                 encoded.append(encoded_key)
             else:
-                encoded_value = quote_plus(str(value), safe=query_safe)
-                encoded_value = _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded_value)
+                encoded_value = encode(str(value))
                 encoded.append(f"{encoded_key}={encoded_value}")
         return "&".join(encoded)
 
