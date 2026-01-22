@@ -17,10 +17,10 @@ def clear_phishing_cache():
 def test_check_against_phishing_db_detects_known_host(monkeypatch):
     fake_text = "malicious.example.com\nphish.bad\n"
     mock_resp = Mock()
-    mock_resp.text = fake_text
-    mock_resp.raise_for_status = Mock()
+    mock_resp.data = fake_text.encode('utf-8')
+    mock_resp.status = 200
 
-    with patch("urlp._security.requests.get", return_value=mock_resp) as mocked_get:
+    with patch("urlp._security.request.urlopen", return_value=mock_resp) as mocked_get:
         assert _security.check_against_phishing_db("phish.bad") is True
         mocked_get.assert_called_once()
 
@@ -28,27 +28,23 @@ def test_check_against_phishing_db_detects_known_host(monkeypatch):
 def test_check_against_phishing_db_returns_false_for_safe_host(monkeypatch):
     fake_text = "malicious.example.com\nphish.bad\n"
     mock_resp = Mock()
-    mock_resp.text = fake_text
-    mock_resp.raise_for_status = Mock()
+    mock_resp.data = fake_text.encode('utf-8')
+    mock_resp.status = 200
 
-    with patch("urlp._security.requests.get", return_value=mock_resp):
+    with patch("urlp._security.request.urlopen", return_value=mock_resp):
         assert _security.check_against_phishing_db("good.example.com") is False
 
 
 def test_check_against_phishing_db_handles_network_error(monkeypatch):
-    with patch("urlp._security.requests.get", side_effect=Exception("network")) as mocked_get:
-        with pytest.raises(Exception):
-            assert _security.check_against_phishing_db("phish.bad") is False
-            mocked_get.assert_called_once()
+    # If the remote download fails, the function should return False (empty set)
+    with patch("urlp._security.request.urlopen", side_effect=Exception("network")) as mocked_get:
+        assert _security.check_against_phishing_db("phish.bad") is False
+        mocked_get.assert_called_once()
 
 
 def test_caching_prevents_multiple_downloads(monkeypatch):
-    fake_text = "one\ntwo\n"
-    mock_resp = Mock()
-    mock_resp.text = fake_text
-    mock_resp.raise_for_status = Mock()
-
-    with patch("urlp._security.requests.get", return_value=mock_resp) as mocked_get:
+    # Patch the internal downloader to return a proper set
+    with patch("urlp._security._download_phishing_db", return_value={"one", "two"}) as mocked_get:
         # First call triggers download
         assert _security.check_against_phishing_db("one") is True
         # Second call should use the cached PHISHING_SET
@@ -59,10 +55,10 @@ def test_caching_prevents_multiple_downloads(monkeypatch):
 def test_url_raises_on_phishing_domain(monkeypatch):
     fake_text = "evil.com\n"
     mock_resp = Mock()
-    mock_resp.text = fake_text
-    mock_resp.raise_for_status = Mock()
+    mock_resp.data = fake_text.encode('utf-8')
+    mock_resp.status = 200
 
-    with patch("urlp._security.requests.get", return_value=mock_resp):
+    with patch("urlp._security.request.urlopen", return_value=mock_resp):
         with pytest.raises(InvalidURLError):
             URL("http://evil.com/", check_phishing=True)
 
