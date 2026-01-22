@@ -1,4 +1,14 @@
-"""High-level URL representation with immutability support."""
+"""High-level immutable URL representation and manipulation.
+
+This module provides the main URL class and helpers for parsing, building, and manipulating URLs.
+
+Public API:
+    - URL: Immutable URL object with rich methods for access and modification.
+    - set_audit_callback, get_audit_callback: Audit hooks for URL parsing events.
+    - parse_relative_reference, build_relative_reference, round_trip_relative: Relative URL helpers.
+
+All public methods and properties are documented below.
+"""
 from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
@@ -15,7 +25,19 @@ from ._validation import Validator, is_valid_userinfo
 class URL:
     """Immutable URL representation.
 
-    URLs are immutable by default. Use `copy()` to create modified versions.
+    URLs are immutable by default. Use `copy()` or `with_*` methods to create modified versions.
+
+    Args:
+        url: The URL string to parse.
+        parser: Optional custom parser instance.
+        builder: Optional custom builder instance.
+        strict: If True, enable SSRF and security checks.
+        debug: If True, include raw input in exception traces.
+        check_dns: If True, perform DNS resolution checks.
+        check_phishing: If True, check for known phishing domains.
+
+    Raises:
+        URLParseError: If the URL is invalid or fails security checks.
     """
 
     __slots__ = (
@@ -109,30 +131,37 @@ class URL:
 
     @property
     def scheme(self) -> Optional[str]:
+        """The URL scheme (e.g., 'http', 'https')."""
         return self._scheme
 
     @property
     def host(self) -> Optional[str]:
+        """The host component (IDNA-encoded if applicable)."""
         return self._host
 
     @property
     def port(self) -> Optional[int]:
+        """The explicit port, or None if not present."""
         return self._port
 
     @property
     def userinfo(self) -> Optional[str]:
+        """The userinfo component (e.g., 'user:pass')."""
         return self._userinfo
 
     @property
     def path(self) -> str:
+        """The path component (always a string, may be empty)."""
         return self._path
 
     @property
     def query(self) -> Optional[str]:
+        """The query string (without '?'), or None if not present."""
         return self._query
 
     @property
     def fragment(self) -> Optional[str]:
+        """The fragment string (without '#'), or None if not present."""
         return self._fragment
 
     @property
@@ -161,7 +190,11 @@ class URL:
 
     @property
     def origin(self) -> str:
-        """Return the origin (scheme://host:port) for same-origin comparisons."""
+        """Return the origin (scheme://host:port) for same-origin comparisons.
+
+        Raises:
+            InvalidURLError: If the URL is not absolute.
+        """
         if not self._scheme or not self._host:
             raise InvalidURLError("Cannot compute origin for relative URL.")
         port = self.effective_port
@@ -176,7 +209,15 @@ class URL:
     # =========================================================================
 
     def copy(self, **overrides: Any) -> 'URL':
-        """Create a copy with optional component overrides."""
+        """Create a copy with optional component overrides.
+
+        Args:
+            overrides: Components to override (scheme, host, port, path, query, fragment, userinfo, query_pairs).
+        Returns:
+            A new URL instance with the specified overrides.
+        Raises:
+            InvalidURLError: If overrides are invalid.
+        """
         _validate_copy_overrides(overrides)
         components = self._to_dict()
         components.update(overrides)
@@ -221,7 +262,7 @@ class URL:
         return self.copy(userinfo=userinfo)
 
     def with_netloc(self, netloc: str) -> 'URL':
-        """Return new URL with different netloc."""
+        """Return new URL with different netloc (userinfo@host:port)."""
         parser = Parser()
         userinfo, host, port = parser.parse_netloc(netloc, require_host=bool(netloc))
         if port is None and self._scheme and host:
@@ -251,7 +292,7 @@ class URL:
         return self.origin == other.origin
 
     def canonicalize(self) -> 'URL':
-        """Return a canonicalized copy of this URL."""
+        """Return a canonicalized copy of this URL (lowercase scheme/host, sorted query, normalized path)."""
         canonical_scheme = self._scheme.lower() if self._scheme else None
         canonical_host = self._host.lower() if self._host else None
         canonical_port = self._port
@@ -279,7 +320,7 @@ class URL:
     # =========================================================================
 
     def as_string(self, *, mask_password: bool = False) -> str:
-        """Return URL as string, optionally masking password."""
+        """Return URL as string, optionally masking password in userinfo."""
         components = self._to_dict()
         if mask_password and components.get("userinfo"):
             userinfo = components["userinfo"]
@@ -297,9 +338,11 @@ class URL:
         }
 
     def __str__(self) -> str:
+        """Return the URL as a string."""
         return self.as_string()
 
     def __repr__(self) -> str:
+        """Return a string representation of the URL object."""
         try:
             url = self.as_string()
         except InvalidURLError:
@@ -307,10 +350,12 @@ class URL:
         return f"URL('{url}')"
 
     def __hash__(self) -> int:
+        """Return a hash of the URL object (for use in sets/dicts)."""
         return hash((self._scheme, self._userinfo, self._host, self._port,
                      self._path, self._query, self._fragment))
 
     def __eq__(self, other: object) -> bool:
+        """Check equality with another URL object."""
         if not isinstance(other, URL):
             return NotImplemented
         return self.as_string() == other.as_string()
