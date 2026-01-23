@@ -39,7 +39,4 @@ urlp provides RFC 3986-compliant URL parsing and validation. However, you should
 | Version | Supported |
 | --- | --- |
 | 0.1.x | ✅ Yes |
-
-## Security Updates
-
-Security updates will be released as patch versions (0.1.z) and announced in the CHANGELOG.
+| 0.0.x | ❌ No |
