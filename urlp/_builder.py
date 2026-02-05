@@ -286,15 +286,75 @@ class Builder:
         return "&".join(encoded)
 
     def add_param(self, query: Optional[str], key: str, value: Optional[str] = None) -> str:
+        """Add a parameter to a query string.
+
+        Appends a new key-value pair to the existing query string.
+        Does not check for duplicate keys.
+
+        Args:
+            query: The existing query string (without '?'), or None.
+            key: The parameter key to add.
+            value: The parameter value, or None for a value-less key.
+
+        Returns:
+            The new query string with the parameter added.
+
+        Example:
+            >>> builder = Builder()
+            >>> builder.add_param('foo=bar', 'baz', 'qux')
+            'foo=bar&baz=qux'
+            >>> builder.add_param(None, 'key', 'value')
+            'key=value'
+        """
         pairs = self.parse_query(query)
         pairs.append((key, value))
         return self.serialize_query(pairs)
 
     def remove_param(self, query: Optional[str], key: str) -> str:
+        """Remove all occurrences of a parameter from a query string.
+
+        Removes ALL key-value pairs matching the given key.
+
+        Args:
+            query: The existing query string (without '?'), or None.
+            key: The parameter key to remove.
+
+        Returns:
+            The new query string with all matching parameters removed.
+
+        Example:
+            >>> builder = Builder()
+            >>> builder.remove_param('foo=1&bar=2&foo=3', 'foo')
+            'bar=2'
+            >>> builder.remove_param('a=1&b=2', 'c')
+            'a=1&b=2'
+        """
         pairs = [(k, v) for k, v in self.parse_query(query) if k != key]
         return self.serialize_query(pairs)
 
     def merge_params(self, query: Optional[str], updates: Mapping[str, Any]) -> str:
+        """Merge new parameters into a query string.
+
+        Adds new key-value pairs from the updates mapping. Does not remove
+        or replace existing parameters with the same keys.
+
+        Args:
+            query: The existing query string (without '?'), or None.
+            updates: A mapping of keys to values. Values can be:
+                - str: Added as a single parameter
+                - None: Added as a value-less key
+                - Iterable (not str/bytes): Each item added as separate parameter
+
+        Returns:
+            The new query string with merged parameters.
+
+        Example:
+            >>> builder = Builder()
+            >>> builder.merge_params('a=1', {'b': '2', 'c': '3'})
+            'a=1&b=2&c=3'
+            >>> builder.merge_params('a=1', {'arr': ['x', 'y']})
+            'a=1&arr=x&arr=y'
+        """
         pairs = self.parse_query(query)
         for key, value in updates.items():
             if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
