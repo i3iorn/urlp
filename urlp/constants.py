@@ -34,15 +34,17 @@ UNSAFE_SCHEMES: FrozenSet[str] = frozenset({"javascript", "data", "vbscript"})
 # Standard well-known ports (moved from _validation.py)
 STANDARD_PORTS: FrozenSet[int] = frozenset([80, 443, 21, 22, 25, 110, 143, 53])
 
-# Component length limits for security (improvement #2)
-MAX_URL_LENGTH = 1024 * 1024  # 1 MB
+# Component length limits for security (tuned for 99.99% of URLs)
+# These are intentionally conservative to reduce attack surface while
+# still accommodating real-world usage (tracking, long query strings, etc.).
+MAX_URL_LENGTH = 32 * 1024         # 32 KB total URL length
 MAX_SCHEME_LENGTH = 16
-MAX_HOST_LENGTH = 253  # Per DNS specification
-MAX_PATH_LENGTH = 8192
-MAX_QUERY_LENGTH = 65536
-MAX_FRAGMENT_LENGTH = 8192
-MAX_USERINFO_LENGTH = 256
-MAX_IPV6_STRING_LENGTH = 128  # Max length for bracketed IPv6 with zone ID
+MAX_HOST_LENGTH = 253              # Per DNS specification
+MAX_PATH_LENGTH = 4 * 1024         # 4 KB
+MAX_QUERY_LENGTH = 8 * 1024        # 8 KB
+MAX_FRAGMENT_LENGTH = 1 * 1024     # 1 KB
+MAX_USERINFO_LENGTH = 128          # 128 chars for userinfo
+MAX_IPV6_STRING_LENGTH = 128       # Max length for bracketed IPv6 with zone ID
 
 # Blocked hostnames for SSRF protection
 # This is a blocklist of dangerous hostnames, not bind addresses
