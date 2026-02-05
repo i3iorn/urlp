@@ -39,7 +39,7 @@ try:
     _idna_module = _idna_import
     _HAS_IDNA = True
 except ImportError:
-    _idna_import = None  # type: ignore[assignment,misc]
+    _idna_import = None  # type: ignore[assignment]
 
 
 class Validator:
