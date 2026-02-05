@@ -184,20 +184,20 @@ def parse_query_string(query_candidate: Optional[str]) -> Tuple[Optional[str], Q
         return "", []
     if len(query_candidate) > MAX_QUERY_LENGTH:
         raise QueryParsingError(f"Query exceeds maximum length of {MAX_QUERY_LENGTH}.", value=query_candidate, component="query")
-    # Use generator expression for pairs
-    def pair_iter():
-        for chunk in query_candidate.split("&"):
-            if not chunk:
-                continue
-            key_raw, sep, value_raw = chunk.partition("=")
-            key = unquote_plus(key_raw)
-            if not key:
-                raise QueryParsingError("Query keys must be non-empty.", value=chunk, component="query")
-            if not Validator.is_valid_query_param(key):
-                raise QueryParsingError("Query key contains invalid characters.", value=key, component="query")
-            yield (key, unquote_plus(value_raw) if sep else None)
-    pairs = list(pair_iter())
-    return Builder.serialize_query_static(pairs), pairs
+
+    pairs: QueryPairs = []
+    for chunk in query_candidate.split("&"):
+        if not chunk:
+            continue
+        key_raw, sep, value_raw = chunk.partition("=")
+        key = unquote_plus(key_raw)
+        if not key:
+            raise QueryParsingError("Query keys must be non-empty.", value=chunk, component="query")
+        if not Validator.is_valid_query_param(key):
+            raise QueryParsingError("Query key contains invalid characters.", value=key, component="query")
+        pairs.append((key, unquote_plus(value_raw) if sep else None))
+
+    return Builder().serialize_query(pairs), pairs
 
 
 def parse_fragment_string(fragment_candidate: Optional[str]) -> Optional[str]:
@@ -304,15 +304,6 @@ class Parser:
         userinfo, host_candidate = parse_userinfo(netloc)
         host, port = parse_host(host_candidate, require_host=require_host)
         return userinfo, host, apply_port_defaults(None, port, host)
-
-    def _split_authority(self, url: str) -> Tuple[str, str]:
-        return split_authority(url)
-
-    def _validate_scheme_port(self, scheme: Optional[str], port: Optional[int], host: Optional[str]) -> None:
-        if scheme and scheme.lower() in SCHEMES_NO_PORT and port is not None:
-            raise UnsupportedSchemeError(f"Scheme '{scheme}' does not allow explicit ports.", value=scheme, component="scheme/port")
-        if port is not None and host is None and (not scheme or scheme.lower() != "file"):
-            raise PortValidationError("Port cannot be set without a host.", value=port, component="port")
 
 
 __all__ = [
