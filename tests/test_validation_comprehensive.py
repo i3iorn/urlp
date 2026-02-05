@@ -4,6 +4,7 @@ Tests edge cases, security considerations, and boundary conditions.
 """
 import pytest
 from urlp._validation import Validator
+from urlp._security import is_private_ip
 from urlp import parse_url, parse_url_unsafe
 from urlp.exceptions import InvalidURLError, URLParseError
 
@@ -261,24 +262,24 @@ class TestIPAddressDetection:
     def test_is_private_ip(self):
         """Test private IP detection"""
         # IPv4 private ranges
-        assert Validator.is_private_ip("10.0.0.1")
-        assert Validator.is_private_ip("172.16.0.1")
-        assert Validator.is_private_ip("192.168.1.1")
-        assert Validator.is_private_ip("127.0.0.1")  # loopback
+        assert is_private_ip("10.0.0.1")
+        assert is_private_ip("172.16.0.1")
+        assert is_private_ip("192.168.1.1")
+        assert is_private_ip("127.0.0.1")  # loopback
 
         # IPv6 private
-        assert Validator.is_private_ip("[::1]")  # loopback
-        assert Validator.is_private_ip("[fe80::1]")  # link-local
-        assert Validator.is_private_ip("[fc00::1]")  # unique local
+        assert is_private_ip("[::1]")  # loopback
+        assert is_private_ip("[fe80::1]")  # link-local
+        assert is_private_ip("[fc00::1]")  # unique local
 
         # Public IPs
-        assert not Validator.is_private_ip("8.8.8.8")
-        assert not Validator.is_private_ip("1.1.1.1")
-        assert not Validator.is_private_ip("[2001:4860:4860::8888]")
+        assert not is_private_ip("8.8.8.8")
+        assert not is_private_ip("1.1.1.1")
+        assert not is_private_ip("[2001:4860:4860::8888]")
 
         # Not IP addresses
-        assert not Validator.is_private_ip("example.com")
-        assert not Validator.is_private_ip("")
+        assert not is_private_ip("example.com")
+        assert not is_private_ip("")
 
 
 class TestSecurityConsiderations:

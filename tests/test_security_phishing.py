@@ -22,7 +22,7 @@ class TestPhishingDBBasicFunctionality:
     def test_check_against_phishing_db_detects_known_host(self):
         fake_text = "malicious.example.com\nphish.bad\n"
         mock_resp = Mock()
-        mock_resp.data = fake_text.encode('utf-8')
+        mock_resp.read.return_value = fake_text.encode('utf-8')
         mock_resp.status = 200
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp) as mocked_get:
@@ -32,7 +32,7 @@ class TestPhishingDBBasicFunctionality:
     def test_check_against_phishing_db_returns_false_for_safe_host(self):
         fake_text = "malicious.example.com\nphish.bad\n"
         mock_resp = Mock()
-        mock_resp.data = fake_text.encode('utf-8')
+        mock_resp.read.return_value = fake_text.encode('utf-8')
         mock_resp.status = 200
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
@@ -50,7 +50,7 @@ class TestPhishingDBBasicFunctionality:
     def test_url_raises_on_phishing_domain(self):
         fake_text = "evil.com\n"
         mock_resp = Mock()
-        mock_resp.data = fake_text.encode('utf-8')
+        mock_resp.read.return_value = fake_text.encode('utf-8')
         mock_resp.status = 200
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
@@ -65,7 +65,7 @@ class TestPhishingDBBasicFunctionality:
         """Host matching should be case-insensitive."""
         fake_text = "malicious.example.com\n"
         mock_resp = Mock()
-        mock_resp.data = fake_text.encode('utf-8')
+        mock_resp.read.return_value = fake_text.encode('utf-8')
         mock_resp.status = 200
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
@@ -76,7 +76,7 @@ class TestPhishingDBBasicFunctionality:
         """Hosts with trailing dots should be normalized."""
         fake_text = "malicious.example.com\n"
         mock_resp = Mock()
-        mock_resp.data = fake_text.encode('utf-8')
+        mock_resp.read.return_value = fake_text.encode('utf-8')
         mock_resp.status = 200
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
@@ -87,8 +87,8 @@ class TestPhishingDBNetworkFailures:
     """Test handling of various network failures during phishing DB download."""
 
     def test_handles_generic_network_error(self):
-        """Generic exception should result in empty set (safe fallback)."""
-        with patch("urlp._security.request.urlopen", side_effect=Exception("network")) as mocked_get:
+        """OSError should result in empty set (safe fallback)."""
+        with patch("urlp._security.request.urlopen", side_effect=OSError("network")) as mocked_get:
             assert _security.check_against_phishing_db("phish.bad") is False
             mocked_get.assert_called_once()
 
@@ -146,7 +146,7 @@ class TestPhishingDBResponseHandling:
         """Non-200 status codes should result in empty set."""
         mock_resp = Mock()
         mock_resp.status = 503
-        mock_resp.data = b"Service Unavailable"
+        mock_resp.read.return_value = b"Service Unavailable"
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             assert _security.check_against_phishing_db("any.host") is False
@@ -155,7 +155,7 @@ class TestPhishingDBResponseHandling:
         """Empty response should result in empty set."""
         mock_resp = Mock()
         mock_resp.status = 200
-        mock_resp.data = b""
+        mock_resp.read.return_value = b""
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             assert _security.check_against_phishing_db("any.host") is False
@@ -165,7 +165,7 @@ class TestPhishingDBResponseHandling:
         mock_resp = Mock()
         mock_resp.status = 200
         # Invalid UTF-8 bytes
-        mock_resp.data = b"valid.host\n\xff\xfe\ninvalid\xc0\xc1.host\n"
+        mock_resp.read.return_value = b"valid.host\n\xff\xfe\ninvalid\xc0\xc1.host\n"
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             # Should still work with valid entries, ignoring invalid bytes
@@ -176,7 +176,7 @@ class TestPhishingDBResponseHandling:
         """Empty lines and whitespace should be handled."""
         mock_resp = Mock()
         mock_resp.status = 200
-        mock_resp.data = b"\n\n  \nphish.bad\n  \n\nother.bad\n\n"
+        mock_resp.read.return_value = b"\n\n  \nphish.bad\n  \n\nother.bad\n\n"
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             assert _security.check_against_phishing_db("phish.bad") is True
@@ -191,7 +191,7 @@ class TestPhishingDBResponseHandling:
 
         mock_resp = Mock()
         mock_resp.status = 200
-        mock_resp.data = fake_text.encode('utf-8')
+        mock_resp.read.return_value = fake_text.encode('utf-8')
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             assert _security.check_against_phishing_db("host0.example.com") is True
@@ -206,7 +206,7 @@ class TestDownloadPhishingDBDirectly:
         """Should return a set of hostnames on success."""
         mock_resp = Mock()
         mock_resp.status = 200
-        mock_resp.data = b"host1.com\nhost2.com\n"
+        mock_resp.read.return_value = b"host1.com\nhost2.com\n"
 
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             result = _security._download_phishing_db()
@@ -215,8 +215,8 @@ class TestDownloadPhishingDBDirectly:
             assert "host2.com" in result
 
     def test_returns_empty_set_on_failure(self):
-        """Should return empty set on any failure."""
-        with patch("urlp._security.request.urlopen", side_effect=Exception("fail")):
+        """Should return empty set on network failure."""
+        with patch("urlp._security.request.urlopen", side_effect=OSError("fail")):
             result = _security._download_phishing_db()
             assert result == set()
 
@@ -228,3 +228,69 @@ class TestDownloadPhishingDBDirectly:
         with patch("urlp._security.request.urlopen", return_value=mock_resp):
             result = _security._download_phishing_db()
             assert result == set()
+
+
+class TestPhishingDBRefresh:
+    """Test phishing database refresh functionality."""
+
+    def test_refresh_phishing_db_redownloads(self):
+        """refresh_phishing_db should re-download the database."""
+        # First, set up initial database
+        mock_resp1 = Mock()
+        mock_resp1.status = 200
+        mock_resp1.read.return_value = b"old.domain.com\n"
+
+        with patch("urlp._security.request.urlopen", return_value=mock_resp1):
+            _security.check_against_phishing_db("old.domain.com")
+            assert _security.check_against_phishing_db("old.domain.com") is True
+            assert _security.check_against_phishing_db("new.domain.com") is False
+
+        # Now refresh with new data
+        mock_resp2 = Mock()
+        mock_resp2.status = 200
+        mock_resp2.read.return_value = b"new.domain.com\n"
+
+        with patch("urlp._security.request.urlopen", return_value=mock_resp2):
+            count = _security.refresh_phishing_db()
+            assert count == 1
+            assert _security.check_against_phishing_db("new.domain.com") is True
+            assert _security.check_against_phishing_db("old.domain.com") is False
+
+    def test_refresh_phishing_db_returns_count(self):
+        """refresh_phishing_db should return the number of hostnames."""
+        mock_resp = Mock()
+        mock_resp.status = 200
+        mock_resp.read.return_value = b"host1.com\nhost2.com\nhost3.com\n"
+
+        with patch("urlp._security.request.urlopen", return_value=mock_resp):
+            count = _security.refresh_phishing_db()
+            assert count == 3
+
+    def test_get_phishing_db_info_before_load(self):
+        """get_phishing_db_info should show not loaded before first use."""
+        info = _security.get_phishing_db_info()
+        assert info["loaded"] is False
+        assert info["size"] == 0
+
+    def test_get_phishing_db_info_after_load(self):
+        """get_phishing_db_info should show loaded after first use."""
+        mock_resp = Mock()
+        mock_resp.status = 200
+        mock_resp.read.return_value = b"host1.com\nhost2.com\n"
+
+        with patch("urlp._security.request.urlopen", return_value=mock_resp):
+            _security.check_against_phishing_db("any.host")
+
+        info = _security.get_phishing_db_info()
+        assert info["loaded"] is True
+        assert info["size"] == 2
+
+    def test_refresh_handles_failure_gracefully(self):
+        """refresh_phishing_db should handle failures gracefully."""
+        with patch("urlp._security.request.urlopen", side_effect=OSError("fail")):
+            count = _security.refresh_phishing_db()
+            assert count == 0
+
+        info = _security.get_phishing_db_info()
+        assert info["loaded"] is True  # Still marked as loaded (with empty set)
+        assert info["size"] == 0

@@ -19,13 +19,19 @@ from urlp import (
     parse_url_unsafe,
     InvalidURLError,
     URLParseError,
-    Validator,
     set_audit_callback,
     get_audit_callback,
-    get_callback_failure_metrics,
-    reset_callback_failure_metrics,
-    PASSWORD_MASK,
 )
+from urlp._audit import get_callback_failure_metrics, reset_callback_failure_metrics
+from urlp.constants import PASSWORD_MASK
+from urlp._security import (
+    is_open_redirect_risk,
+    check_dns_rebinding,
+    has_double_encoding,
+    has_mixed_scripts,
+    has_path_traversal,
+)
+from urlp._validation import Validator
 
 
 class TestOpenRedirectDetection:
@@ -33,22 +39,22 @@ class TestOpenRedirectDetection:
 
     def test_backslash_detected(self):
         """Backslash in path should be detected as redirect risk."""
-        assert Validator.is_open_redirect_risk("\\\\evil.com")
-        assert Validator.is_open_redirect_risk("/path\\to\\file")
+        assert is_open_redirect_risk("\\\\evil.com")
+        assert is_open_redirect_risk("/path\\to\\file")
 
     def test_double_slash_start_detected(self):
         """Double slash at start should be detected."""
-        assert Validator.is_open_redirect_risk("//evil.com/path")
+        assert is_open_redirect_risk("//evil.com/path")
 
     def test_triple_slash_detected(self):
         """Triple slash should be detected."""
-        assert Validator.is_open_redirect_risk("///evil.com")
+        assert is_open_redirect_risk("///evil.com")
 
     def test_normal_path_safe(self):
         """Normal paths should not be flagged."""
-        assert not Validator.is_open_redirect_risk("/normal/path")
-        assert not Validator.is_open_redirect_risk("/path/to/resource")
-        assert not Validator.is_open_redirect_risk("/")
+        assert not is_open_redirect_risk("/normal/path")
+        assert not is_open_redirect_risk("/path/to/resource")
+        assert not is_open_redirect_risk("/")
 
     def test_parse_url_rejects_redirect_risk(self):
         """parse_url should reject open redirect patterns."""
@@ -127,10 +133,10 @@ class TestDNSRebindingProtection:
 
     def test_ip_address_direct_check(self):
         """Direct IP addresses should be checked without DNS."""
-        assert Validator.resolve_host_safe("8.8.8.8")
-        assert not Validator.resolve_host_safe("127.0.0.1")
-        assert not Validator.resolve_host_safe("192.168.1.1")
-        assert not Validator.resolve_host_safe("10.0.0.1")
+        assert check_dns_rebinding("8.8.8.8")
+        assert not check_dns_rebinding("127.0.0.1")
+        assert not check_dns_rebinding("192.168.1.1")
+        assert not check_dns_rebinding("10.0.0.1")
 
     def test_check_dns_flag_separate_from_strict(self):
         """check_dns should work independently of strict mode."""
@@ -149,7 +155,7 @@ class TestDNSRebindingProtection:
             (2, 1, 6, '', ('127.0.0.1', 0))  # Returns loopback
         ]
 
-        assert not Validator.resolve_host_safe("evil.example.com")
+        assert not check_dns_rebinding("evil.example.com")
 
     @patch('urlp._security.socket.getaddrinfo')
     def test_dns_resolves_to_public_allowed(self, mock_getaddrinfo):
@@ -158,11 +164,11 @@ class TestDNSRebindingProtection:
             (2, 1, 6, '', ('93.184.216.34', 0))  # example.com IP
         ]
 
-        assert Validator.resolve_host_safe("example.com")
+        assert check_dns_rebinding("example.com")
 
     def test_dns_resolution_failure_treated_as_unsafe(self):
         """DNS resolution failure should be treated as unsafe."""
-        assert not Validator.resolve_host_safe("definitely-not-a-real-domain-12345.invalid")
+        assert not check_dns_rebinding("definitely-not-a-real-domain-12345.invalid")
 
 
 class TestCacheManagement:
@@ -203,21 +209,21 @@ class TestDoubleEncodingDetection:
 
     def test_double_encoded_slash(self):
         """Should detect double-encoded slash (%252F)."""
-        assert Validator.has_double_encoding("%252F")  # %2F encoded
+        assert has_double_encoding("%252F")  # %2F encoded
 
     def test_double_encoded_dot(self):
         """Should detect double-encoded dot (%252E)."""
-        assert Validator.has_double_encoding("%252E")  # %2E encoded
+        assert has_double_encoding("%252E")  # %2E encoded
 
     def test_single_encoding_safe(self):
         """Single encoding should not be flagged."""
-        assert not Validator.has_double_encoding("%2F")
-        assert not Validator.has_double_encoding("%2E")
+        assert not has_double_encoding("%2F")
+        assert not has_double_encoding("%2E")
 
     def test_no_encoding_safe(self):
         """Plain text should not be flagged."""
-        assert not Validator.has_double_encoding("/path/to/file")
-        assert not Validator.has_double_encoding("normal text")
+        assert not has_double_encoding("/path/to/file")
+        assert not has_double_encoding("normal text")
 
     def test_parse_url_rejects_double_encoding(self):
         """parse_url should reject double-encoded URLs."""
@@ -257,7 +263,7 @@ class TestSecureDefaults:
         # Test the validator directly first
         cyrillic_a = '\u0430'  # Cyrillic small letter a
         mixed_host = f"ex{cyrillic_a}mple"
-        assert Validator.has_mixed_scripts(mixed_host), "Validator should detect mixed scripts"
+        assert has_mixed_scripts(mixed_host), "Validator should detect mixed scripts"
 
         # parse_url checks mixed scripts on original host before IDNA encoding
         with pytest.raises(InvalidURLError, match="mixed Unicode scripts"):
@@ -275,22 +281,22 @@ class TestPathTraversalDetection:
 
     def test_dot_dot_detected(self):
         """Should detect .. in path."""
-        assert Validator.has_path_traversal("../../../etc/passwd")
-        assert Validator.has_path_traversal("/path/../secret")
+        assert has_path_traversal("../../../etc/passwd")
+        assert has_path_traversal("/path/../secret")
 
     def test_encoded_dot_dot_detected(self):
         """Should detect encoded .. (%2e%2e)."""
-        assert Validator.has_path_traversal("%2e%2e/etc/passwd")
-        assert Validator.has_path_traversal("%2E%2E/etc/passwd")
+        assert has_path_traversal("%2e%2e/etc/passwd")
+        assert has_path_traversal("%2E%2E/etc/passwd")
 
     def test_null_byte_detected(self):
         """Should detect null byte injection."""
-        assert Validator.has_path_traversal("/path\x00.jpg")
+        assert has_path_traversal("/path\x00.jpg")
 
     def test_normal_path_safe(self):
         """Normal paths should not be flagged."""
-        assert not Validator.has_path_traversal("/normal/path/to/file")
-        assert not Validator.has_path_traversal("/path/file.txt")
+        assert not has_path_traversal("/normal/path/to/file")
+        assert not has_path_traversal("/path/file.txt")
 
 
 class TestSemanticURLComparison:

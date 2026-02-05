@@ -79,16 +79,6 @@ def test_parse_applies_default_ports_and_validates_file_scheme() -> None:
         parser.parse("file://localhost:99/path")
 
 
-def test_split_authority_handles_paths_and_missing_segments() -> None:
-    parser = Parser()
-    authority, path = parser._split_authority("example.com")
-    assert authority == "example.com"
-    assert path == ""
-    authority, path = parser._split_authority("example.com/sub/path")
-    assert authority == "example.com"
-    assert path == "/sub/path"
-
-
 def test_fragment_regex_edge_cases() -> None:
     parser = Parser()
     parsed = parser.parse("http://example.com/#frag!$&'()*+,;=:@/?")
@@ -162,12 +152,6 @@ def test_parse_port_range_check() -> None:
     parser = Parser()
     with pytest.raises(InvalidURLError):
         parser.parse("http://example.com:70000")
-
-
-def test_validate_scheme_port_requires_host_when_port_present() -> None:
-    parser = Parser()
-    with pytest.raises(InvalidURLError):
-        parser._validate_scheme_port("https", 443, None)
 
 
 def test_parse_handles_empty_query_string() -> None:

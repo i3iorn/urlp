@@ -41,6 +41,7 @@ except ImportError:
 
 from urlp import parse_url, parse_url_unsafe, URLParseError, InvalidURLError
 from urlp._validation import Validator as ValidatorClass, is_valid_userinfo
+from urlp import _security
 
 
 class TestParserFuzzing:
@@ -182,14 +183,14 @@ class TestValidatorFuzzing:
     @settings(max_examples=200)
     def test_ssrf_risk_detection(self, host):
         """Ensure SSRF risk detection handles any input."""
-        result = ValidatorClass.is_ssrf_risk(host)
+        result = _security.is_ssrf_risk(host)
         assert isinstance(result, bool)
 
     @given(st.text(max_size=200))
     @settings(max_examples=200)
     def test_mixed_scripts_detection(self, host):
         """Ensure mixed scripts detection handles any input."""
-        result = ValidatorClass.has_mixed_scripts(host)
+        result = _security.has_mixed_scripts(host)
         assert isinstance(result, bool)
 
 
@@ -321,12 +322,12 @@ class TestEdgeCases:
 
     def test_type_validation_url_not_string(self):
         """Ensure TypeError is raised for non-string URL."""
-        with pytest.raises(TypeError, match="must be a string"):
+        with pytest.raises(TypeError, match="must be str"):
             parse_url_unsafe(12345)  # type: ignore
 
     def test_type_validation_strict_not_bool(self):
         """Ensure TypeError is raised for non-bool strict in parse_url_unsafe."""
-        with pytest.raises(TypeError, match="must be a boolean"):
+        with pytest.raises(TypeError, match="must be bool"):
             parse_url_unsafe("http://example.com", strict="yes")  # type: ignore
 
 
@@ -335,21 +336,21 @@ class TestHomographDetection:
 
     def test_pure_latin_not_mixed(self):
         """Pure Latin text should not be flagged."""
-        assert not ValidatorClass.has_mixed_scripts("example")
+        assert not _security.has_mixed_scripts("example")
 
     def test_pure_cyrillic_not_mixed(self):
         """Pure Cyrillic text should not be flagged."""
-        assert not ValidatorClass.has_mixed_scripts("примір")
+        assert not _security.has_mixed_scripts("примір")
 
     def test_mixed_latin_cyrillic_flagged(self):
         """Mixed Latin and Cyrillic should be flagged."""
         # 'а' is Cyrillic, rest is Latin
-        assert ValidatorClass.has_mixed_scripts("exаmple")  # Cyrillic 'а'
+        assert _security.has_mixed_scripts("exаmple")  # Cyrillic 'а'
 
     def test_numbers_and_dots_ignored(self):
         """Numbers and dots should not trigger mixed scripts."""
-        assert not ValidatorClass.has_mixed_scripts("example.com")
-        assert not ValidatorClass.has_mixed_scripts("example123.com")
+        assert not _security.has_mixed_scripts("example.com")
+        assert not _security.has_mixed_scripts("example123.com")
 
 
 class TestSSRFProtection:
@@ -357,38 +358,38 @@ class TestSSRFProtection:
 
     def test_localhost_is_ssrf_risk(self):
         """localhost should be flagged as SSRF risk."""
-        assert ValidatorClass.is_ssrf_risk("localhost")
+        assert _security.is_ssrf_risk("localhost")
 
     def test_127_0_0_1_is_ssrf_risk(self):
         """127.0.0.1 should be flagged as SSRF risk."""
-        assert ValidatorClass.is_ssrf_risk("127.0.0.1")
+        assert _security.is_ssrf_risk("127.0.0.1")
 
     def test_private_ip_is_ssrf_risk(self):
         """Private IPs should be flagged as SSRF risk."""
-        assert ValidatorClass.is_ssrf_risk("192.168.1.1")
-        assert ValidatorClass.is_ssrf_risk("10.0.0.1")
-        assert ValidatorClass.is_ssrf_risk("172.16.0.1")
+        assert _security.is_ssrf_risk("192.168.1.1")
+        assert _security.is_ssrf_risk("10.0.0.1")
+        assert _security.is_ssrf_risk("172.16.0.1")
 
     def test_public_ip_not_ssrf_risk(self):
         """Public IPs should not be flagged as SSRF risk."""
-        assert not ValidatorClass.is_ssrf_risk("8.8.8.8")
-        assert not ValidatorClass.is_ssrf_risk("1.1.1.1")
+        assert not _security.is_ssrf_risk("8.8.8.8")
+        assert not _security.is_ssrf_risk("1.1.1.1")
 
     def test_local_domain_is_ssrf_risk(self):
         """.local domains should be flagged as SSRF risk."""
-        assert ValidatorClass.is_ssrf_risk("printer.local")
-        assert ValidatorClass.is_ssrf_risk("mydevice.localhost")
+        assert _security.is_ssrf_risk("printer.local")
+        assert _security.is_ssrf_risk("mydevice.localhost")
 
     def test_public_domain_not_ssrf_risk(self):
         """Public domains should not be flagged as SSRF risk."""
-        assert not ValidatorClass.is_ssrf_risk("example.com")
-        assert not ValidatorClass.is_ssrf_risk("google.com")
+        assert not _security.is_ssrf_risk("example.com")
+        assert not _security.is_ssrf_risk("google.com")
 
     def test_ipv6_loopback_is_ssrf_risk(self):
         """IPv6 loopback should be flagged as SSRF risk."""
-        assert ValidatorClass.is_ssrf_risk("[::1]")
+        assert _security.is_ssrf_risk("[::1]")
 
     def test_ipv4_mapped_ipv6_is_ssrf_risk(self):
         """IPv4-mapped IPv6 addresses should be flagged as SSRF risk."""
-        assert ValidatorClass.is_ssrf_risk("[::ffff:127.0.0.1]")
-        assert ValidatorClass.is_ssrf_risk("[::FFFF:192.168.1.1]")
+        assert _security.is_ssrf_risk("[::ffff:127.0.0.1]")
+        assert _security.is_ssrf_risk("[::FFFF:192.168.1.1]")

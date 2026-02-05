@@ -1,13 +1,8 @@
 """Tests for the URL class and related functionality."""
 import pytest
 
-from urlp import (
-    InvalidURLError,
-    URL,
-    parse_relative_reference,
-    build_relative_reference,
-    round_trip_relative,
-)
+from urlp import InvalidURLError, URL
+from urlp._relative import parse_relative_reference, build_relative_reference, round_trip_relative
 from urlp._parser import Parser
 
 
