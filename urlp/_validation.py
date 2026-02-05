@@ -21,6 +21,7 @@ from .constants import (
     MAX_FRAGMENT_LENGTH,
     MAX_IPV6_STRING_LENGTH,
     STANDARD_PORTS,
+    MAX_USERINFO_LENGTH,
 )
 from ._patterns import PATTERNS
 
@@ -310,7 +311,7 @@ class Validator:
         return previous_sizes
 
 
-def is_valid_userinfo(value: str, max_length: int = 256) -> bool:
+def is_valid_userinfo(value: str, max_length: int = MAX_USERINFO_LENGTH) -> bool:
     """Validate userinfo format safely without ReDoS risk.
     
     Args:
