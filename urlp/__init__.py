@@ -1,23 +1,19 @@
 """urlp - Lightweight, secure, and RFC-compliant URL parsing and building.
 
-This package provides:
-    - Immutable URL objects (`URL`)
-    - Secure and unsafe parsing entry points (`parse_url`, `parse_url_unsafe`)
-    - URL building helpers (`build`, `compose_url`)
-    - Relative URL utilities
-    - Rich exception hierarchy for error handling
-    - Security and validation helpers
-    - Constants for limits and defaults
+Quick start:
+    >>> from urlp import parse_url, build
+    >>> url = parse_url("https://example.com/path?query=value")
+    >>> url.host
+    'example.com'
+    >>> build("https", "example.com", path="/api", query="v=1")
+    'https://example.com/api?v=1'
 
 Main entry points:
     - parse_url: Secure parsing with SSRF, phishing, and traversal protection
     - parse_url_unsafe: Parsing without security checks (trusted sources only)
     - build: Build a URL string from components
     - compose_url: Build a URL string from a dict of components
-    - URL: Immutable URL object
-    - All exceptions and constants are re-exported for convenience
-
-See function/class docstrings for details.
+    - URL: Immutable URL object with manipulation methods
 """
 from __future__ import annotations
 
@@ -25,59 +21,21 @@ from typing import Any, Mapping, Optional
 
 __version__ = "0.2.1"
 
-# Exceptions
+# Exceptions (only essential ones exported)
 from .exceptions import (
     InvalidURLError,
     URLpError,
     URLParseError,
     URLBuildError,
-    UnsupportedSchemeError,
-    HostValidationError,
-    PortValidationError,
-    QueryParsingError,
-    FragmentEncodingError,
-    UserInfoParsingError,
-    MissingHostError,
 )
 
-# URL class and related
-from .url import (
-    URL,
-    build_relative_reference,
-    parse_relative_reference,
-    round_trip_relative,
-    set_audit_callback,
-    get_audit_callback,
-    get_callback_failure_metrics,
-    reset_callback_failure_metrics,
-)
+# URL class and audit callbacks
+from .url import URL, set_audit_callback, get_audit_callback
 
-# Internal classes (for advanced use)
+# Internal imports (used by public functions, not re-exported)
 from ._parser import Parser
 from ._builder import Builder
-from ._validation import Validator
-
-# Security and cache management
-from ._security import (
-    validate_url_security,
-    get_cache_info as get_security_cache_info,
-    clear_caches as clear_security_caches,
-    refresh_phishing_db,
-    get_phishing_db_info,
-)
-
-# Constants
-from .constants import (
-    MAX_URL_LENGTH,
-    MAX_SCHEME_LENGTH,
-    MAX_HOST_LENGTH,
-    MAX_PATH_LENGTH,
-    MAX_QUERY_LENGTH,
-    MAX_FRAGMENT_LENGTH,
-    MAX_USERINFO_LENGTH,
-    DEFAULT_DNS_TIMEOUT,
-    PASSWORD_MASK,
-)
+from ._security import validate_url_security
 
 
 # =============================================================================
@@ -208,9 +166,10 @@ def compose_url(components: Mapping[str, Any]) -> str:
 __all__ = [
     # Version
     "__version__",
-    # Primary API
+    # Primary API - Parsing
     "parse_url",
     "parse_url_unsafe",
+    # Primary API - Building
     "build",
     "compose_url",
     # URL class
@@ -220,40 +179,7 @@ __all__ = [
     "InvalidURLError",
     "URLParseError",
     "URLBuildError",
-    "UnsupportedSchemeError",
-    "HostValidationError",
-    "PortValidationError",
-    "QueryParsingError",
-    "FragmentEncodingError",
-    "UserInfoParsingError",
-    "MissingHostError",
-    # Relative URL helpers
-    "parse_relative_reference",
-    "build_relative_reference",
-    "round_trip_relative",
-    # Audit
+    # Audit callbacks
     "set_audit_callback",
     "get_audit_callback",
-    "get_callback_failure_metrics",
-    "reset_callback_failure_metrics",
-    # Validation and advanced classes
-    "Validator",
-    "Parser",
-    "Builder",
-    # Security
-    "validate_url_security",
-    "get_security_cache_info",
-    "clear_security_caches",
-    "refresh_phishing_db",
-    "get_phishing_db_info",
-    # Constants
-    "MAX_URL_LENGTH",
-    "MAX_SCHEME_LENGTH",
-    "MAX_HOST_LENGTH",
-    "MAX_PATH_LENGTH",
-    "MAX_QUERY_LENGTH",
-    "MAX_FRAGMENT_LENGTH",
-    "MAX_USERINFO_LENGTH",
-    "DEFAULT_DNS_TIMEOUT",
-    "PASSWORD_MASK",
 ]
