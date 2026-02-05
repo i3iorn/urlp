@@ -366,6 +366,30 @@ class URL:
             return NotImplemented
         return self.as_string() == other.as_string()
 
+    def __lt__(self, other: object) -> bool:
+        """Compare URLs lexicographically for sorting."""
+        if not isinstance(other, URL):
+            return NotImplemented
+        return self.as_string() < other.as_string()
+
+    def __le__(self, other: object) -> bool:
+        """Compare URLs lexicographically for sorting."""
+        if not isinstance(other, URL):
+            return NotImplemented
+        return self.as_string() <= other.as_string()
+
+    def __gt__(self, other: object) -> bool:
+        """Compare URLs lexicographically for sorting."""
+        if not isinstance(other, URL):
+            return NotImplemented
+        return self.as_string() > other.as_string()
+
+    def __ge__(self, other: object) -> bool:
+        """Compare URLs lexicographically for sorting."""
+        if not isinstance(other, URL):
+            return NotImplemented
+        return self.as_string() >= other.as_string()
+
 
 
 def _normalize_port(value: Optional[Any]) -> Optional[int]:
