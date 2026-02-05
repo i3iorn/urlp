@@ -8,6 +8,18 @@ and better diagnostics for users and tools.
 
 from typing import Any, Optional
 
+# Maximum length for value representation in error messages
+_MAX_VALUE_LENGTH = 200
+
+
+def _truncate_value(value: Any, max_length: int = _MAX_VALUE_LENGTH) -> str:
+    """Truncate a value's repr if it exceeds max_length."""
+    value_repr = repr(value)
+    if len(value_repr) > max_length:
+        return value_repr[:max_length - 3] + "..."
+    return value_repr
+
+
 class URLpError(Exception):
     """Base exception for URLp errors.
 
@@ -29,7 +41,8 @@ class URLpError(Exception):
     def __str__(self) -> str:
         base = super().__str__()
         if self.value is not None or self.component:
-            return f"{base} (component={self.component!r}, value={self.value!r})"
+            truncated_value = _truncate_value(self.value)
+            return f"{base} (component={self.component!r}, value={truncated_value})"
         return base
 
 class InvalidURLError(URLpError):
