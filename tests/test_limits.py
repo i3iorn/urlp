@@ -78,7 +78,7 @@ def test_total_url_length_boundary():
     # create a long query to reach total length
     base = "http://example.com/"
     remaining = MAX_URL_LENGTH - len(base) - 10
-    q = make_long_query(remaining)
+    q = make_long_query(min(remaining, MAX_QUERY_LENGTH))
     ok = base + "?" + q
     u = parse_url_unsafe(ok)
     assert isinstance(u, URL)
