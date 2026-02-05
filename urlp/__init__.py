@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Optional
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 # Exceptions (only essential ones exported)
 from .exceptions import (
