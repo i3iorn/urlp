@@ -254,15 +254,9 @@ class Builder:
 
     def serialize_query(self, params: QueryPairs) -> str:
         """Serialize query pairs to a query string."""
-        return Builder._serialize_query_impl(params, self.QUERY_SAFE)
+        return self._serialize_query_impl(params, self.QUERY_SAFE)
 
-    @staticmethod
-    def serialize_query_static(params: QueryPairs) -> str:
-        """Static method for serializing query pairs without instantiating Builder."""
-        return Builder._serialize_query_impl(params, Builder.QUERY_SAFE)
-
-    @staticmethod
-    def _serialize_query_impl(params: QueryPairs, query_safe: str) -> str:
+    def _serialize_query_impl(self, params: QueryPairs, query_safe: str) -> str:
         """Shared implementation for query serialization."""
         if not params:
             return ""
