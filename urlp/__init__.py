@@ -48,6 +48,8 @@ from .url import (
     round_trip_relative,
     set_audit_callback,
     get_audit_callback,
+    get_callback_failure_metrics,
+    reset_callback_failure_metrics,
 )
 
 # Internal classes (for advanced use)
@@ -226,6 +228,8 @@ __all__ = [
     # Audit
     "set_audit_callback",
     "get_audit_callback",
+    "get_callback_failure_metrics",
+    "reset_callback_failure_metrics",
     # Validation
     "Validator",
     # Constants
