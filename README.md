@@ -10,12 +10,12 @@ Lightweight URL parsing/building helpers with optional immutability controls and
 pip install urlp
 ```
 
-When hacking on the repo directly, create a virtual environment and install the local package in editable mode:
+When working on the repo directly, create a virtual environment and install the local package in editable mode (include dev extras for linters/tests):
 
 ```bash
 python -m venv .venv
 . .venv/Scripts/activate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Highlights
@@ -303,41 +303,29 @@ url = parse_url("https://api.example.com/", check_dns=True)
 
 ### Validation Methods
 
-The `Validator` class provides methods for checking specific attack patterns:
+High-level security checks are available via the public `parse_url()` helpers (see above). For most use cases prefer `parse_url(..., check_dns=True)` or `parse_url_unsafe()` for trusted input.
+
+Advanced, lower-level validators and security helpers live in internal modules:
+- Pure validators: `urlp._validation.Validator` (e.g., host/IPv4/IPv6 validation, cache management).
+- Security helpers: `urlp._security` (e.g., `is_ssrf_risk`, `check_dns_rebinding`, `has_path_traversal`, `is_open_redirect_risk`, `has_double_encoding`, `has_mixed_scripts`, `is_private_ip`).
+
+Examples (high-level and advanced):
 
 ```python
-from urlp import Validator
+from urlp import parse_url, InvalidURLError
 
-# SSRF risk detection (comprehensive)
-Validator.is_ssrf_risk("localhost")           # True
-Validator.is_ssrf_risk("192.168.1.1")         # True
-Validator.is_ssrf_risk("example.com")         # False
+# High-level: secure parsing, optionally perform DNS checks
+try:
+    u = parse_url("https://api.example.com/", check_dns=True)
+except InvalidURLError as e:
+    print(f"Rejected URL: {e}")
 
-# DNS rebinding check (performs actual lookup)
-Validator.resolve_host_safe("example.com")    # True (resolves to public IP)
-Validator.resolve_host_safe("127.0.0.1")      # False (private IP)
+# Advanced (internal helpers) — import from internal modules when you need focused checks
+from urlp._security import is_ssrf_risk, check_dns_rebinding, has_path_traversal
 
-# Path traversal detection
-Validator.has_path_traversal("../../../etc/passwd")  # True
-Validator.has_path_traversal("%2e%2e/secret")        # True (encoded)
-Validator.has_path_traversal("/normal/path")         # False
-
-# Open redirect detection
-Validator.is_open_redirect_risk("//evil.com")        # True
-Validator.is_open_redirect_risk("/path\\to")         # True (backslash)
-Validator.is_open_redirect_risk("/normal/path")      # False
-
-# Double-encoding detection (bypass attempts)
-Validator.has_double_encoding("%252F")               # True (%2F encoded)
-Validator.has_double_encoding("%2F")                 # False (single encoding)
-
-# Homograph attack detection (mixed scripts)
-Validator.has_mixed_scripts("exаmple")               # True (Cyrillic 'а')
-Validator.has_mixed_scripts("example")               # False (pure Latin)
-
-# Private IP detection
-Validator.is_private_ip("192.168.1.1")               # True
-Validator.is_private_ip("8.8.8.8")                   # False
+is_ssrf_risk("localhost")           # True
+check_dns_rebinding("example.com")  # True/False depending on resolution
+has_path_traversal("../../../etc/passwd")  # True
 ```
 
 ### URL Canonicalization
@@ -354,24 +342,7 @@ print(canonical.scheme)   # "http" (lowercase)
 print(canonical.host)     # "example.com" (lowercase)
 print(canonical.port)     # None (default port removed)
 print(canonical.query)    # "a=2&z=1" (sorted)
-print(canonical.frozen)   # True
-```
-
-### Semantic URL Comparison
-
-Compare URLs by meaning, not just string representation:
-
-```python
-from urlp import parse_url
-
-url1 = parse_url("HTTP://EXAMPLE.COM:80/path?b=2&a=1")
-url2 = parse_url("http://example.com/path?a=1&b=2")
-
-# String comparison would fail:
-assert url1.as_string() != url2.as_string()
-
-# Semantic comparison succeeds:
-assert url1.is_semantically_equal(url2)  # True!
+print(canonical.as_string())  # canonical string form
 ```
 
 ### Password Masking
@@ -414,14 +385,14 @@ url = parse_url("https://example.com/")
 
 ### Cache Management
 
-Clear validation caches after processing untrusted input:
+Clear validation caches after processing untrusted input. The `Validator` class lives in `urlp._validation` and exposes cache helpers.
 
 ```python
-from urlp import Validator
+from urlp._validation import Validator
 
 # Get cache statistics
 stats = Validator.get_cache_info()
-print(stats['is_valid_host'])  # {'hits': 10, 'misses': 5, 'maxsize': 512, 'currsize': 5}
+print(stats.get('is_valid_host'))
 
 # Clear all caches (frees memory, resets state)
 previous_sizes = Validator.clear_caches()
@@ -429,17 +400,21 @@ previous_sizes = Validator.clear_caches()
 
 ### Component Length Limits
 
-urlp enforces length limits to prevent DoS attacks:
+urlp enforces conservative length limits to prevent DoS attacks while covering >99.99% of real-world URLs:
 
 | Component | Max Length |
 |-----------|------------|
-| URL (total) | 1 MB |
+| URL (total) | 32 KB |
 | Scheme | 16 chars |
 | Host | 253 chars |
-| Path | 8,192 chars |
-| Query | 65,536 chars |
-| Fragment | 8,192 chars |
-| Userinfo | 256 chars |
+| Path | 4,096 chars (4 KB) |
+| Query | 8,192 chars (8 KB) |
+| Fragment | 1,024 chars (1 KB) |
+| Userinfo | 128 chars |
+
+Notes:
+- These limits are intentionally conservative (see `urlp/constants.py`) to reduce attack surface while still accommodating long query strings used in analytics and tracking.
+- If you need to accept unusually long URLs (rare), consider a lenient configuration or an explicit opt-in that raises limits for trusted contexts. When changing defaults, include a migration note in your release and add boundary tests for the new limits.
 
 ## Design Notes
 
