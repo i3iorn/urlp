@@ -11,7 +11,7 @@ All public methods and properties are documented below.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Type
 
 from ._builder import Builder, QueryPairs
 from ._audit import (
@@ -26,6 +26,13 @@ from .constants import DEFAULT_PORTS, MAX_URL_LENGTH, PASSWORD_MASK
 from .exceptions import InvalidURLError, URLParseError
 from ._parser import Parser
 from ._validation import Validator, is_valid_userinfo
+from . import _security
+
+
+def _check_type(value: Any, expected: Type, name: str) -> None:
+    """Validate that value is of expected type."""
+    if not isinstance(value, expected):
+        raise TypeError(f"{name} must be {expected.__name__}, got {type(value).__name__}")
 
 
 class URL:
@@ -61,16 +68,11 @@ class URL:
         check_dns: bool = False,
         check_phishing: bool = False,
     ) -> None:
-        if not isinstance(url, str):
-            raise TypeError(f"URL must be a string, got {type(url).__name__}")
-        if not isinstance(strict, bool):
-            raise TypeError(f"strict must be a boolean, got {type(strict).__name__}")
-        if not isinstance(debug, bool):
-            raise TypeError(f"debug must be a boolean, got {type(debug).__name__}")
-        if not isinstance(check_dns, bool):
-            raise TypeError(f"check_dns must be a boolean, got {type(check_dns).__name__}")
-        if not isinstance(check_phishing, bool):
-            raise TypeError(f"check_phishing must be a boolean, got {type(check_phishing).__name__}")
+        _check_type(url, str, "url")
+        _check_type(strict, bool, "strict")
+        _check_type(debug, bool, "debug")
+        _check_type(check_dns, bool, "check_dns")
+        _check_type(check_phishing, bool, "check_phishing")
 
         self._parser = parser if parser is not None else Parser()
         self._builder = builder if builder is not None else Builder()
@@ -99,8 +101,6 @@ class URL:
             invoke_audit_callback(url, self, None)
         except InvalidURLError as exc:
             invoke_audit_callback(url, None, exc)
-            if not self._debug:
-                raise type(exc)(str(exc)) from None
             raise
         except Exception as exc:
             invoke_audit_callback(url, None, exc)
@@ -108,11 +108,11 @@ class URL:
 
     def _security_checks(self) -> None:
         """Run security validations on parsed URL."""
-        if self._strict and self._host and Validator.is_ssrf_risk(self._host):
+        if self._strict and self._host and _security.is_ssrf_risk(self._host):
             raise InvalidURLError("Host poses SSRF risk and is disallowed in strict mode.")
-        if self._check_dns and self._host and not Validator.resolve_host_safe(self._host):
+        if self._check_dns and self._host and not _security.check_dns_rebinding(self._host):
             raise InvalidURLError("Host resolves to private/reserved IP address.")
-        if self._check_phishing and self._host and Validator.is_phishing_domain(self._host):
+        if self._check_phishing and self._host and _security.check_against_phishing_db(self._host):
             raise InvalidURLError("Host is identified as a phishing domain.")
 
     def _apply_parsed(self, components: Mapping[str, Optional[Any]]) -> None:
