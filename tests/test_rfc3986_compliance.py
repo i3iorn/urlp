@@ -5,7 +5,7 @@ This test suite covers the examples and edge cases specified in RFC 3986
 to ensure full compliance with the URI specification.
 """
 import pytest
-from urlp import parse_url, parse_url_unsafe, compose_url, URL
+from urlp import parse_url, parse_url_unsafe, compose_url
 from urlp._parser import Parser
 from urlp._builder import Builder
 from urlp.exceptions import InvalidURLError
@@ -82,7 +82,6 @@ class TestReservedCharacters:
 
     def test_percent_encoding_normalization(self):
         """Percent-encoding should be normalized to uppercase"""
-        builder = Builder()
         components = {
             "scheme": "http",
             "host": "example.com",
@@ -311,7 +310,6 @@ class TestEdgeCases:
 
     def test_unicode_in_path(self):
         """Unicode in path should be percent-encoded"""
-        builder = Builder()
         result = compose_url({
             "scheme": "http",
             "host": "example.com",

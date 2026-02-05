@@ -17,7 +17,6 @@ from unittest.mock import Mock, patch
 from urlp import (
     parse_url,
     parse_url_unsafe,
-    URL,
     InvalidURLError,
     URLParseError,
     Validator,
@@ -370,7 +369,7 @@ class TestAuditLogging:
         callback = Mock()
         set_audit_callback(callback)
 
-        url = parse_url("http://example.com/path")
+        parse_url("http://example.com/path")
 
         callback.assert_called_once()
         args = callback.call_args[0]
@@ -407,7 +406,6 @@ class TestAuditLogging:
     def test_thread_safety_concurrent_parsing(self):
         """Audit callback should be thread-safe with concurrent URL parsing."""
         import threading
-        import time
 
         results = []
         errors = []

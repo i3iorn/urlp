@@ -1,5 +1,3 @@
-import pytest
-
 from urlp._validation import Validator
 from urlp._builder import Builder
 

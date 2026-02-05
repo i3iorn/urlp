@@ -87,12 +87,6 @@ def generate_edge_case_urls(n: int = 100, seed: int = 0) -> list[str]:
     ipv6_hosts = ['[::1]', '[2001:db8::1]', '[fe80::1]']
     # Long query strings
     long_query = '&'.join([f'param{i}=value{i}' for i in range(20)])
-    # Special characters in query
-    special_queries = [
-        'q=hello%20world&special=%3D%26%3F',
-        'emoji=😀&text=test',
-        'chinese=中文&japanese=日本語',
-    ]
 
     # Relative URLs
     relative_urls = ['/path/to/resource', '../parent/path', './current/path', 'resource.html']

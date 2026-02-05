@@ -1,5 +1,3 @@
-import pytest
-
 from urlp import parse_url, compose_url, URL
 
 

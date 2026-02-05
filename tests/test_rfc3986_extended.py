@@ -11,10 +11,9 @@ This test suite focuses on areas not fully covered in test_rfc3986_compliance.py
 - Scheme-specific validation
 """
 import pytest
-from urlp import parse_url, parse_url_unsafe, compose_url, URL
+from urlp import parse_url, parse_url_unsafe, compose_url
 from urlp._parser import Parser
 from urlp._builder import Builder
-from urlp._validation import Validator
 from urlp.exceptions import InvalidURLError, URLParseError
 
 
@@ -24,7 +23,6 @@ class TestPercentEncodingRFC3986:
     def test_percent_encoding_unreserved_not_encoded(self):
         """RFC 3986 § 2.3: Unreserved chars should NOT be percent-encoded"""
         # Unreserved: ALPHA / DIGIT / "-" / "." / "_" / "~"
-        builder = Builder()
 
         # Test that unreserved chars don't get encoded
         result = compose_url({

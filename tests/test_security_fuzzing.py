@@ -39,7 +39,7 @@ except ImportError:
     def assume(condition):
         pass
 
-from urlp import parse_url, parse_url_unsafe, URLParseError, InvalidURLError, Validator
+from urlp import parse_url, parse_url_unsafe, URLParseError, InvalidURLError
 from urlp._validation import Validator as ValidatorClass, is_valid_userinfo
 
 
