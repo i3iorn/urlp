@@ -22,6 +22,8 @@ from urlp import (
     Validator,
     set_audit_callback,
     get_audit_callback,
+    get_callback_failure_metrics,
+    reset_callback_failure_metrics,
     PASSWORD_MASK,
 )
 
@@ -479,6 +481,137 @@ class TestAuditLogging:
         assert len(errors) == 0, f"Errors occurred: {errors}"
         # At least some callbacks should have been invoked
         assert call_count["a"] + call_count["b"] == 20
+
+
+class TestCallbackFailureMetrics:
+    """Tests for callback failure metrics tracking."""
+
+    def setup_method(self):
+        """Reset callback and metrics before each test."""
+        set_audit_callback(None)
+        reset_callback_failure_metrics()
+
+    def teardown_method(self):
+        """Clean up after each test."""
+        set_audit_callback(None)
+        reset_callback_failure_metrics()
+
+    def test_initial_metrics_are_zero(self):
+        """Initial failure count should be zero."""
+        metrics = get_callback_failure_metrics()
+        assert metrics["failure_count"] == 0
+        assert metrics["last_error"] is None
+
+    def test_failing_callback_increments_count(self):
+        """Callback that raises should increment failure count."""
+        def failing_callback(raw_url, parsed_url, exception):
+            raise ValueError("Callback error")
+
+        set_audit_callback(failing_callback)
+        parse_url("http://example.com/")
+
+        metrics = get_callback_failure_metrics()
+        assert metrics["failure_count"] == 1
+        assert isinstance(metrics["last_error"], ValueError)
+        assert str(metrics["last_error"]) == "Callback error"
+
+    def test_multiple_failures_tracked(self):
+        """Multiple callback failures should be counted."""
+        def failing_callback(raw_url, parsed_url, exception):
+            raise RuntimeError("fail")
+
+        set_audit_callback(failing_callback)
+
+        for i in range(5):
+            parse_url(f"http://example{i}.com/")
+
+        metrics = get_callback_failure_metrics()
+        assert metrics["failure_count"] == 5
+
+    def test_last_error_is_most_recent(self):
+        """last_error should be the most recent exception."""
+        call_count = [0]
+
+        def failing_callback(raw_url, parsed_url, exception):
+            call_count[0] += 1
+            raise ValueError(f"Error {call_count[0]}")
+
+        set_audit_callback(failing_callback)
+
+        parse_url("http://example1.com/")
+        parse_url("http://example2.com/")
+        parse_url("http://example3.com/")
+
+        metrics = get_callback_failure_metrics()
+        assert metrics["failure_count"] == 3
+        assert str(metrics["last_error"]) == "Error 3"
+
+    def test_successful_callback_does_not_increment(self):
+        """Successful callback should not affect failure metrics."""
+        def good_callback(raw_url, parsed_url, exception):
+            pass  # Does nothing, doesn't raise
+
+        set_audit_callback(good_callback)
+        parse_url("http://example.com/")
+
+        metrics = get_callback_failure_metrics()
+        assert metrics["failure_count"] == 0
+        assert metrics["last_error"] is None
+
+    def test_reset_clears_metrics(self):
+        """reset_callback_failure_metrics should clear all metrics."""
+        def failing_callback(raw_url, parsed_url, exception):
+            raise ValueError("fail")
+
+        set_audit_callback(failing_callback)
+        parse_url("http://example.com/")
+
+        # Verify there's a failure
+        assert get_callback_failure_metrics()["failure_count"] == 1
+
+        # Reset and verify
+        previous = reset_callback_failure_metrics()
+        assert previous["failure_count"] == 1
+        assert previous["last_error"] is not None
+
+        metrics = get_callback_failure_metrics()
+        assert metrics["failure_count"] == 0
+        assert metrics["last_error"] is None
+
+    def test_callback_failure_does_not_break_parsing(self):
+        """Callback failure should not prevent URL from being parsed."""
+        def failing_callback(raw_url, parsed_url, exception):
+            raise Exception("This should not break parsing")
+
+        set_audit_callback(failing_callback)
+
+        # Should not raise, even though callback fails
+        url = parse_url("http://example.com/path")
+        assert url.host == "example.com"
+        assert url.path == "/path"
+
+    def test_thread_safety_of_metrics(self):
+        """Metrics should be thread-safe."""
+        import threading
+
+        def failing_callback(raw_url, parsed_url, exception):
+            raise ValueError("fail")
+
+        set_audit_callback(failing_callback)
+
+        def parse_many():
+            for i in range(10):
+                parse_url(f"http://example{i}.com/")
+
+        threads = [threading.Thread(target=parse_many) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        metrics = get_callback_failure_metrics()
+        # 5 threads * 10 URLs each = 50 failures
+        assert metrics["failure_count"] == 50
 
 
 class TestCheckDNSFlag:
