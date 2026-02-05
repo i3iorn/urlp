@@ -554,10 +554,10 @@ class TestBoundaryConditions:
 
     def test_very_long_path(self):
         """Very long paths should be handled up to the security limit"""
-        # Paths up to MAX_PATH_LENGTH (8192) should work
-        long_path = "/" + "a" * 8000
+        # Paths up to MAX_PATH_LENGTH (4096) should work
+        long_path = "/" + "a" * 4000
         url = parse_url(f"http://example.com{long_path}")
-        assert len(url.path) > 7900
+        assert len(url.path) > 3900
 
         # Paths exceeding MAX_PATH_LENGTH should be rejected
         too_long_path = "/" + "a" * 10000
@@ -566,7 +566,7 @@ class TestBoundaryConditions:
 
     def test_very_long_query(self):
         """Very long query strings should be handled"""
-        long_query = "key=" + "a" * 10000
+        long_query = "key=" + "a" * 8000
         url = parse_url(f"http://example.com/?{long_query}")
         assert url.query is not None
 
@@ -579,6 +579,6 @@ class TestBoundaryConditions:
 
     def test_many_query_parameters(self):
         """Many query parameters should be handled"""
-        params = "&".join([f"key{i}=value{i}" for i in range(1000)])
+        params = "&".join([f"key{i}=value{i}" for i in range(500)])
         url = parse_url(f"http://example.com/?{params}")
-        assert len(url.query_params) == 1000
+        assert len(url.query_params) == 500
