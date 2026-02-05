@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Dict, FrozenSet, Set
+import os
+import warnings
 
 
 class OfficialSchemes(Enum):
@@ -45,6 +47,46 @@ MAX_QUERY_LENGTH = 8 * 1024        # 8 KB
 MAX_FRAGMENT_LENGTH = 1 * 1024     # 1 KB
 MAX_USERINFO_LENGTH = 128          # 128 chars for userinfo
 MAX_IPV6_STRING_LENGTH = 128       # Max length for bracketed IPv6 with zone ID
+
+# Allow overriding the above max-lengths via environment variables.
+# Each env var should contain a positive integer. Invalid values are ignored
+# and a warning is emitted.
+_ENV_OVERRIDES = {
+    "MAX_URL_LENGTH": "URLP_MAX_URL_LENGTH",
+    "MAX_SCHEME_LENGTH": "URLP_MAX_SCHEME_LENGTH",
+    "MAX_HOST_LENGTH": "URLP_MAX_HOST_LENGTH",
+    "MAX_PATH_LENGTH": "URLP_MAX_PATH_LENGTH",
+    "MAX_QUERY_LENGTH": "URLP_MAX_QUERY_LENGTH",
+    "MAX_FRAGMENT_LENGTH": "URLP_MAX_FRAGMENT_LENGTH",
+    "MAX_USERINFO_LENGTH": "URLP_MAX_USERINFO_LENGTH",
+    "MAX_IPV6_STRING_LENGTH": "URLP_MAX_IPV6_STRING_LENGTH",
+}
+
+
+def _apply_env_overrides() -> None:
+    """Apply environment-variable overrides to module-level max-size constants.
+
+    Environment variables are named like `URLP_MAX_URL_LENGTH`. Values must be
+    positive integers. Invalid or non-positive values are ignored with a warning.
+    """
+    for const_name, env_name in _ENV_OVERRIDES.items():
+        val = os.getenv(env_name)
+        if val is None:
+            continue
+        try:
+            iv = int(val)
+        except Exception:
+            warnings.warn(f"Environment variable {env_name} value '{val}' is not an integer; ignoring.")
+            continue
+        if iv <= 0:
+            warnings.warn(f"Environment variable {env_name} must be a positive integer; ignoring value {iv}.")
+            continue
+        # Set the module-level constant
+        globals()[const_name] = iv
+
+
+# Apply overrides at import time
+_apply_env_overrides()
 
 # Blocked hostnames for SSRF protection
 # This is a blocklist of dangerous hostnames, not bind addresses
