@@ -113,9 +113,7 @@ def parse_url_unsafe(
 
 
 def build(
-    scheme: str,
-    host: str,
-    *,
+    *scheme_and_host: str,
     port: Optional[int] = None,
     path: str = "/",
     query: Optional[str] = None,
@@ -125,8 +123,10 @@ def build(
     """Build a URL string from components.
 
     Args:
-        scheme: URL scheme (e.g., 'https', 'http')
-        host: Hostname or IP address
+        scheme_and_host: Variable arguments for scheme and host.
+            If one argument is provided, it's treated as host only.
+            If two or more arguments are provided, the first is scheme, second is host,
+            remaining are ignored.
         port: Optional port number
         path: URL path (defaults to '/')
         query: Optional query string (without '?')
@@ -136,6 +136,14 @@ def build(
     Returns:
         The composed URL string.
     """
+    if len(scheme_and_host) == 1:
+        scheme = None
+        host = scheme_and_host[0]
+    elif len(scheme_and_host) >= 2:
+        scheme, host, *_ = scheme_and_host
+    else:
+        raise URLBuildError("At least host must be provided to build a URL.")
+
     return Builder().compose({
         "scheme": scheme,
         "host": host,
