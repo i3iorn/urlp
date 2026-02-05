@@ -57,8 +57,14 @@ from ._parser import Parser
 from ._builder import Builder
 from ._validation import Validator
 
-# Security
-from ._security import validate_url_security
+# Security and cache management
+from ._security import (
+    validate_url_security,
+    get_cache_info as get_security_cache_info,
+    clear_caches as clear_security_caches,
+    refresh_phishing_db,
+    get_phishing_db_info,
+)
 
 # Constants
 from .constants import (
@@ -230,8 +236,16 @@ __all__ = [
     "get_audit_callback",
     "get_callback_failure_metrics",
     "reset_callback_failure_metrics",
-    # Validation
+    # Validation and advanced classes
     "Validator",
+    "Parser",
+    "Builder",
+    # Security
+    "validate_url_security",
+    "get_security_cache_info",
+    "clear_security_caches",
+    "refresh_phishing_db",
+    "get_phishing_db_info",
     # Constants
     "MAX_URL_LENGTH",
     "MAX_SCHEME_LENGTH",
