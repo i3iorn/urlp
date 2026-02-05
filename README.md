@@ -416,6 +416,43 @@ Notes:
 - These limits are intentionally conservative (see `urlp/constants.py`) to reduce attack surface while still accommodating long query strings used in analytics and tracking.
 - If you need to accept unusually long URLs (rare), consider a lenient configuration or an explicit opt-in that raises limits for trusted contexts. When changing defaults, include a migration note in your release and add boundary tests for the new limits.
 
+## Environment variable overrides
+
+This project supports overriding several security-related maximum length constants via environment variables. Overrides are applied at import time, so set environment variables before importing `urlp` or `urlp.constants`.
+
+Supported environment variables (maps to module constant):
+
+- URLP_MAX_URL_LENGTH -> MAX_URL_LENGTH
+- URLP_MAX_SCHEME_LENGTH -> MAX_SCHEME_LENGTH
+- URLP_MAX_HOST_LENGTH -> MAX_HOST_LENGTH
+- URLP_MAX_PATH_LENGTH -> MAX_PATH_LENGTH
+- URLP_MAX_QUERY_LENGTH -> MAX_QUERY_LENGTH
+- URLP_MAX_FRAGMENT_LENGTH -> MAX_FRAGMENT_LENGTH
+- URLP_MAX_USERINFO_LENGTH -> MAX_USERINFO_LENGTH
+- URLP_MAX_IPV6_STRING_LENGTH -> MAX_IPV6_STRING_LENGTH
+
+Behavior
+
+- Values must be positive integers. Non-integer or non-positive values are ignored and a UserWarning is emitted.
+- Overrides are applied at import time: change environment variables and re-import the `urlp.constants` module (or restart the Python process) to pick up new values.
+
+Examples
+
+PowerShell (Windows):
+
+$env:URLP_MAX_URL_LENGTH = "65536"
+python -c "import urlp.constants as c; print(c.MAX_URL_LENGTH)"
+
+POSIX shell:
+
+export URLP_MAX_URL_LENGTH=65536
+python -c 'import urlp.constants as c; print(c.MAX_URL_LENGTH)'
+
+Notes
+
+- This feature is intended for advanced users who need to tune limits for special environments. Use caution when increasing limits in security-sensitive contexts.
+
+
 ## Design Notes
 
 - `Parser.parse()` sets `parser.query_pairs` and emits a serialized query string; both representations stay in sync for round-trips.
