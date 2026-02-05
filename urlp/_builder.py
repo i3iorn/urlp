@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from urllib.parse import quote, quote_plus, unquote_plus
 from functools import lru_cache
 
@@ -146,7 +146,7 @@ class Builder:
             return ""
         encoded: List[str] = []
         # Cache for percent-encoded keys/values
-        encode_cache = {}
+        encode_cache: Dict[str, str] = {}
         def encode(val):
             if val in encode_cache:
                 return encode_cache[val]
