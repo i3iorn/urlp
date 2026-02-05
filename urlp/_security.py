@@ -199,7 +199,7 @@ def check_dns_rebinding(host: str, timeout: Optional[float] = None) -> bool:
     except (socket.gaierror, socket.timeout, OSError):
         return False
 
-PHISHING_SET = None
+PHISHING_SET: Optional[Set[str]] = None
 
 def check_against_phishing_db(host: str) -> bool:
     """Check if hostname is in known phishing database."""
@@ -210,6 +210,38 @@ def check_against_phishing_db(host: str) -> bool:
         return False
     host_lower = host.lower().rstrip('.')
     return host_lower in PHISHING_SET
+
+
+def refresh_phishing_db() -> int:
+    """Refresh the phishing database cache.
+
+    Forces a re-download of the phishing database from the remote source.
+    This is useful for long-running applications that need fresh data.
+
+    Returns:
+        The number of hostnames in the refreshed database.
+
+    Example:
+        >>> refresh_phishing_db()
+        12345
+    """
+    global PHISHING_SET
+    PHISHING_SET = _download_phishing_db()
+    return len(PHISHING_SET)
+
+
+def get_phishing_db_info() -> dict:
+    """Get information about the current phishing database cache.
+
+    Returns:
+        Dict containing:
+            - loaded: Whether the database has been loaded
+            - size: Number of hostnames in the database (0 if not loaded)
+    """
+    return {
+        "loaded": PHISHING_SET is not None,
+        "size": len(PHISHING_SET) if PHISHING_SET is not None else 0,
+    }
 
 
 def _download_phishing_db() -> Set[str]:
@@ -340,4 +372,5 @@ __all__ = [
     "is_ssrf_risk", "is_private_ip", "check_dns_rebinding", "has_mixed_scripts",
     "has_double_encoding", "has_path_traversal", "is_open_redirect_risk",
     "extract_host_and_path", "validate_url_security", "get_cache_info", "clear_caches",
+    "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
 ]
