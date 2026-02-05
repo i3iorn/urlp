@@ -96,7 +96,7 @@ class Validator:
             return False
         try:
             ascii_host = Validator._to_ascii_host(host)
-        except Exception:
+        except (UnicodeError, UnicodeDecodeError, ValueError):
             return False
         if len(ascii_host) > MAX_HOST_LENGTH:
             return False
@@ -266,112 +266,6 @@ class Validator:
         if not isinstance(host, str):
             return False
         return Validator.is_valid_ipv4(host) or Validator.is_valid_ipv6(host)
-
-    # =========================================================================
-    # Security delegation methods (for backward compatibility)
-    # These delegate to the _security module
-    # =========================================================================
-
-    @staticmethod
-    def is_private_ip(host: str) -> bool:
-        """Check if host is a private/reserved IP address.
-
-        Args:
-            host: The host string.
-        Returns:
-            True if private/reserved, False otherwise.
-        """
-        from . import _security
-        return _security.is_private_ip(host)
-
-    @staticmethod
-    def is_ssrf_risk(host: str) -> bool:
-        """Check if host poses SSRF risk.
-
-        Args:
-            host: The host string.
-        Returns:
-            True if SSRF risk, False otherwise.
-        """
-        from . import _security
-        return _security.is_ssrf_risk(host)
-
-    @staticmethod
-    def has_mixed_scripts(host: str) -> bool:
-        """Detect potential homograph attacks.
-
-        Args:
-            host: The host string.
-        Returns:
-            True if mixed scripts detected, False otherwise.
-        """
-        from . import _security
-        return _security.has_mixed_scripts(host)
-
-    @staticmethod
-    def is_open_redirect_risk(path: str) -> bool:
-        """Check if path could cause an open redirect.
-
-        Args:
-            path: The path string.
-        Returns:
-            True if open redirect risk, False otherwise.
-        """
-        from . import _security
-        return _security.is_open_redirect_risk(path)
-
-    @staticmethod
-    def has_double_encoding(value: str) -> bool:
-        """Detect potential double-encoding attacks.
-
-        Args:
-            value: The string to check.
-        Returns:
-            True if double-encoding detected, False otherwise.
-        """
-        from . import _security
-        return _security.has_double_encoding(value)
-
-    @staticmethod
-    def has_path_traversal(path: str) -> bool:
-        """Detect potential path traversal attempts.
-
-        Args:
-            path: The path string.
-        Returns:
-            True if path traversal detected, False otherwise.
-        """
-        from . import _security
-        return _security.has_path_traversal(path)
-
-    @staticmethod
-    def resolve_host_safe(host: str, timeout: Optional[float] = None) -> bool:
-        """Check if hostname resolves to safe (non-private) IPs.
-
-        Args:
-            host: The host string.
-            timeout: Optional DNS resolution timeout.
-        Returns:
-            True if all resolved IPs are safe, False otherwise.
-        """
-        from . import _security
-        return _security.check_dns_rebinding(host, timeout)
-
-    @staticmethod
-    def is_phishing_domain(host: str) -> bool:
-        """(Backward-compatible) Check if hostname is listed in the phishing DB.
-
-        Note: name intentionally preserves the misspelling used across the
-        public API ("phishing") so existing callers in the codebase keep
-        working. Delegates to the _security.check_against_phishing_db helper.
-
-        Args:
-            host: The host string.
-        Returns:
-            True if host is in the phishing DB, False otherwise.
-        """
-        from . import _security
-        return _security.check_against_phishing_db(host)
 
     # =========================================================================
     # Cache management
