@@ -6,6 +6,7 @@ import socket
 from functools import lru_cache
 from typing import Optional, Set, Tuple, Union
 from urllib import request
+from urllib.error import URLError
 from urllib.parse import unquote
 
 from .constants import BLOCKED_HOSTNAMES, DEFAULT_DNS_TIMEOUT
@@ -34,12 +35,19 @@ def _check_ipv6_private(host: str) -> bool:
     if not host.startswith("[") or not host.endswith("]"):
         return False
     try:
-        inner = host[1:-1]
-        if "%25" in inner:
-            inner, _, _ = inner.partition("%25")
+        inner = _strip_ipv6_brackets(host)
         return not _is_ip_safe(ipaddress.IPv6Address(inner))
     except (ValueError, ipaddress.AddressValueError):
         return False
+
+
+def _strip_ipv6_brackets(host: str) -> str:
+    """Strip brackets and zone ID from IPv6 address."""
+    if host.startswith('[') and host.endswith(']'):
+        host = host[1:-1]
+        if '%25' in host:
+            host, _, _ = host.partition('%25')
+    return host
 
 
 # =============================================================================
@@ -111,15 +119,6 @@ def _is_octal_hex_ip_private(host: str) -> bool:
 # =============================================================================
 # DNS Resolution Safety
 # =============================================================================
-
-def _strip_ipv6_brackets(host: str) -> str:
-    """Strip brackets and zone ID from IPv6 address."""
-    if host.startswith('[') and host.endswith(']'):
-        host = host[1:-1]
-        if '%25' in host:
-            host, _, _ = host.partition('%25')
-    return host
-
 
 def _check_direct_ip_safe(host: str) -> Optional[bool]:
     """Check if host is a direct IP and if it's safe. Returns None if not IP."""
@@ -251,10 +250,10 @@ def _download_phishing_db() -> Set[str]:
         response = request.urlopen(PHISHING_DB_URL, timeout=DEFAULT_DNS_TIMEOUT)
         if response.status != 200:
             return set()
-        content = response.data.decode('utf-8', errors='ignore')
+        content = response.read().decode('utf-8', errors='ignore')
         hostnames = {line.strip().lower() for line in content.splitlines() if line.strip()}
         return hostnames
-    except Exception:
+    except (URLError, socket.timeout, OSError, ValueError):
         return set()
 
 
@@ -275,7 +274,7 @@ def has_mixed_scripts(host: str) -> bool:
                     if script in tracked:
                         scripts.add(script)
         return len(scripts) > 1
-    except Exception:
+    except (ValueError, KeyError):
         return False
 
 
@@ -298,7 +297,7 @@ def has_path_traversal(path: str) -> bool:
             return True
         if '..' in unquote(decoded):
             return True
-    except Exception:
+    except (ValueError, UnicodeDecodeError):
         pass
     return False
 
