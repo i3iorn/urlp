@@ -315,8 +315,8 @@ class TestSecurityConsiderations:
 
     def test_extremely_long_components(self):
         """Test handling of extremely long components"""
-        # Path within security limit (MAX_PATH_LENGTH = 8192) should work
-        acceptable_path = "/a" * 4000
+        # Path within security limit (MAX_PATH_LENGTH = 4096) should work
+        acceptable_path = "/a" * 2000
         url = parse_url(f"http://example.com{acceptable_path}")
         assert url.path == acceptable_path
 
