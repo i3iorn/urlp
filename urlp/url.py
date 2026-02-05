@@ -14,7 +14,13 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Optional
 
 from ._builder import Builder, QueryPairs
-from ._audit import set_audit_callback, get_audit_callback, invoke_audit_callback
+from ._audit import (
+    set_audit_callback,
+    get_audit_callback,
+    invoke_audit_callback,
+    get_callback_failure_metrics,
+    reset_callback_failure_metrics,
+)
 from ._relative import parse_relative_reference, build_relative_reference, round_trip_relative
 from .constants import DEFAULT_PORTS, MAX_URL_LENGTH, PASSWORD_MASK
 from .exceptions import InvalidURLError, URLParseError
@@ -399,5 +405,6 @@ def _validate_copy_overrides(overrides: Dict[str, Any]) -> None:
 
 __all__ = [
     "URL", "set_audit_callback", "get_audit_callback",
+    "get_callback_failure_metrics", "reset_callback_failure_metrics",
     "parse_relative_reference", "build_relative_reference", "round_trip_relative",
 ]
