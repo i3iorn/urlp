@@ -18,11 +18,55 @@ _PERCENT_ENCODE_PATTERN = PATTERNS["percent_encode"]
 
 
 class Builder:
+    """URL composition and building utilities.
+
+    This class provides methods for building URLs from components,
+    serializing query parameters, and manipulating URL parts.
+
+    Class Attributes:
+        PATH_SAFE: Characters that don't need percent-encoding in paths.
+        QUERY_SAFE: Characters that don't need percent-encoding in query strings.
+        FRAGMENT_SAFE: Characters that don't need percent-encoding in fragments.
+
+    Example:
+        >>> builder = Builder()
+        >>> builder.compose({"scheme": "https", "host": "example.com", "path": "/api"})
+        'https://example.com/api'
+    """
+
     PATH_SAFE = "-._~!$&'()*+,;=:@%"
     QUERY_SAFE = "-._~:/?@!$&'()*+,;="
     FRAGMENT_SAFE = "-._~!$&'()*+,;=:@/?"
 
     def compose(self, components: Mapping[str, Any]) -> str:
+        """Compose a URL string from component parts.
+
+        Assembles a complete URL from individual components, handling proper
+        encoding and normalization according to RFC 3986.
+
+        Args:
+            components: A mapping containing URL components:
+                - scheme (str, optional): URL scheme (e.g., 'https', 'http')
+                - host (str, optional): Hostname or IP address
+                - port (int, optional): Port number (omitted if default for scheme)
+                - path (str, optional): URL path (normalized, defaults to '/')
+                - query (str, optional): Raw query string
+                - query_pairs (list, optional): List of (key, value) tuples (preferred over query)
+                - fragment (str, optional): Fragment identifier
+                - userinfo (str, optional): User info in 'user:pass' format
+
+        Returns:
+            The composed URL string.
+
+        Raises:
+            URLBuildError: If host is required but not provided.
+            PortValidationError: If port is set without a host.
+
+        Note:
+            - If both `query` and `query_pairs` are provided, `query_pairs` takes precedence.
+            - Default ports (80 for http, 443 for https) are automatically omitted.
+            - Paths are normalized (e.g., '/a/../b' becomes '/b').
+        """
         scheme = components.get("scheme")
         userinfo = components.get("userinfo")
         host = components.get("host")
@@ -56,7 +100,36 @@ class Builder:
             url += f"#{self.percent_encode(fragment, safe=self.FRAGMENT_SAFE)}"
         return url
 
-    def build_netloc(self, userinfo: Optional[str], host: Optional[str], port: Optional[int], scheme: Optional[str]) -> str:
+    def build_netloc(
+        self,
+        userinfo: Optional[str],
+        host: Optional[str],
+        port: Optional[int],
+        scheme: Optional[str]
+    ) -> str:
+        """Build the network location (authority) component of a URL.
+
+        Constructs the netloc string in the format: [userinfo@]host[:port]
+
+        Args:
+            userinfo: Optional user information (e.g., 'user:password').
+            host: Hostname or IP address. Required if port is provided.
+            port: Optional port number. Omitted if it's the default for the scheme.
+            scheme: URL scheme, used to determine default ports.
+
+        Returns:
+            The netloc string, or empty string if no host is provided.
+
+        Raises:
+            PortValidationError: If port is provided without a host.
+
+        Example:
+            >>> builder = Builder()
+            >>> builder.build_netloc('user:pass', 'example.com', 8080, 'https')
+            'user:pass@example.com:8080'
+            >>> builder.build_netloc(None, 'example.com', 443, 'https')
+            'example.com'  # Port 443 omitted for https
+        """
         if not host:
             if port is not None:
                 raise PortValidationError("Port cannot be set without a host.", value=port, component="port")
@@ -73,6 +146,31 @@ class Builder:
         return "".join(parts)
 
     def normalize_path(self, path: Optional[str]) -> str:
+        """Normalize a URL path according to RFC 3986.
+
+        Performs the following normalizations:
+        - Resolves '.' (current directory) segments
+        - Resolves '..' (parent directory) segments
+        - Percent-encodes characters that need encoding
+        - Preserves trailing slashes when appropriate
+        - Normalizes percent-encoding to uppercase
+
+        Args:
+            path: The path string to normalize, or None/empty string.
+
+        Returns:
+            The normalized path string. Returns empty string for None/empty input.
+            Returns '/' for absolute paths that resolve to root.
+
+        Example:
+            >>> builder = Builder()
+            >>> builder.normalize_path('/a/b/../c')
+            '/a/c'
+            >>> builder.normalize_path('/a/./b')
+            '/a/b'
+            >>> builder.normalize_path('/a/b/')
+            '/a/b/'
+        """
         if path is None or path == "":
             return ""
         absolute = path.startswith("/")
@@ -115,6 +213,30 @@ class Builder:
         return _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded)
 
     def parse_query(self, query: Optional[str]) -> QueryPairs:
+        """Parse a query string into a list of key-value pairs.
+
+        Splits the query string on '&' delimiters and decodes each key-value pair.
+        Values are URL-decoded using plus-to-space conversion.
+
+        Args:
+            query: The query string to parse (without the leading '?'),
+                   or None/empty string.
+
+        Returns:
+            A list of (key, value) tuples. Value is None for keys without '='.
+
+        Raises:
+            URLBuildError: If a query key is empty.
+
+        Example:
+            >>> builder = Builder()
+            >>> builder.parse_query('foo=bar&baz=qux')
+            [('foo', 'bar'), ('baz', 'qux')]
+            >>> builder.parse_query('flag&key=value')
+            [('flag', None), ('key', 'value')]
+            >>> builder.parse_query('name=hello+world')
+            [('name', 'hello world')]
+        """
         if query is None or query == "":
             return []
         pairs: QueryPairs = []
