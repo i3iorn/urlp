@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import threading
-from typing import Optional, Callable, TYPE_CHECKING
+from typing import Optional, Callable, TYPE_CHECKING, Dict, Any
 
 if TYPE_CHECKING:
     from .url import URL
@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 # Thread-safe audit callback for security logging
 _audit_callback_lock = threading.Lock()
 _audit_callback: Optional[Callable[[str, Optional['URL'], Optional[Exception]], None]] = None
+
+# Metrics for callback failures
+_callback_failure_count: int = 0
+_last_callback_error: Optional[Exception] = None
 
 
 def set_audit_callback(
@@ -41,15 +45,59 @@ def invoke_audit_callback(
     exception: Optional[Exception]
 ) -> None:
     """Invoke the audit callback if set, in a thread-safe manner."""
+    global _callback_failure_count, _last_callback_error
+
     with _audit_callback_lock:
         callback = _audit_callback
 
     if callback is not None:
         try:
             callback(raw_url, parsed_url, exception)
-        except Exception:
+        except Exception as e:
             # Don't let callback errors propagate and break URL parsing
-            pass
+            # but track them for diagnostics
+            with _audit_callback_lock:
+                _callback_failure_count += 1
+                _last_callback_error = e
 
 
-__all__ = ["set_audit_callback", "get_audit_callback", "invoke_audit_callback"]
+def get_callback_failure_metrics() -> Dict[str, Any]:
+    """Get metrics about audit callback failures.
+
+    Returns:
+        Dict containing:
+            - failure_count: Total number of callback invocation failures
+            - last_error: The last exception raised by a callback, or None
+    """
+    with _audit_callback_lock:
+        return {
+            "failure_count": _callback_failure_count,
+            "last_error": _last_callback_error,
+        }
+
+
+def reset_callback_failure_metrics() -> Dict[str, Any]:
+    """Reset callback failure metrics and return previous values.
+
+    Returns:
+        Dict containing the metrics before reset.
+    """
+    global _callback_failure_count, _last_callback_error
+
+    with _audit_callback_lock:
+        previous = {
+            "failure_count": _callback_failure_count,
+            "last_error": _last_callback_error,
+        }
+        _callback_failure_count = 0
+        _last_callback_error = None
+        return previous
+
+
+__all__ = [
+    "set_audit_callback",
+    "get_audit_callback",
+    "invoke_audit_callback",
+    "get_callback_failure_metrics",
+    "reset_callback_failure_metrics",
+]
