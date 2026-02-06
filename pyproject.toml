@@ -11,7 +11,7 @@ requires-python = ">=3.9"
 authors = [
   { name = "urlp maintainers" },
 ]
-license = "MIT"
+license = {text = "MIT"}
 license-files = ["LICENSE"]
 keywords = ["url", "parser", "builder", "rfc3986", "validation", "idna", "ipv6"]
 classifiers = [
