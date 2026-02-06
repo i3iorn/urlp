@@ -153,3 +153,4 @@ htmlcov/
 # Profiling
 *.prof
 *.pstats
+/performance/

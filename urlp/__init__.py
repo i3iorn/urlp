@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Optional
 import importlib
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from urlp._audit import set_audit_callback, get_audit_callback
 from urlp.exceptions import URLpError, InvalidURLError, URLParseError, URLBuildError
