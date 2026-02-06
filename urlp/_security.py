@@ -257,10 +257,22 @@ def _download_phishing_db() -> Set[str]:
         return set()
 
 
+@lru_cache(maxsize=512)
 def has_mixed_scripts(host: str) -> bool:
-    """Detect potential homograph attacks using mixed Unicode scripts."""
+    """Detect potential homograph attacks using mixed Unicode scripts.
+
+    Performance: LRU cached and with fast-path for ASCII-only hosts.
+    """
     if not isinstance(host, str):
         return False
+    # Fast path: ASCII-only hosts cannot have mixed Unicode scripts
+    # This optimization avoids expensive unicodedata imports for common case
+    try:
+        host.encode('ascii')
+        return False  # Pure ASCII, no mixed scripts possible
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass  # Contains non-ASCII, continue with full check
+
     try:
         import unicodedata
         scripts: Set[str] = set()
@@ -331,14 +343,26 @@ def extract_host_and_path(url: str) -> Tuple[str, str]:
 
 
 def validate_url_security(url: str) -> None:
-    """Run comprehensive security validations. Raises InvalidURLError if issue detected."""
+    """Run comprehensive security validations. Raises InvalidURLError if issue detected.
+
+    Performance: Fast-path for pure ASCII URLs skips expensive Unicode checks.
+    """
     from .exceptions import InvalidURLError
+
+    # Fast path: Pure ASCII URLs skip expensive Unicode checks
+    is_ascii = True
+    try:
+        url.encode('ascii')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        is_ascii = False
+
     if has_double_encoding(url):
         raise InvalidURLError("URL contains double-encoded characters.")
     if '://' not in url:
         return
     host, path = extract_host_and_path(url)
-    if host and has_mixed_scripts(host):
+    # Skip mixed script check for ASCII-only URLs (major optimization)
+    if host and not is_ascii and has_mixed_scripts(host):
         raise InvalidURLError("URL host contains mixed Unicode scripts.")
     if path:
         if has_path_traversal(path):
@@ -348,7 +372,7 @@ def validate_url_security(url: str) -> None:
 
 
 # Cache management
-_CACHED_FUNCTIONS = [is_private_ip, is_ssrf_risk]
+_CACHED_FUNCTIONS = [is_private_ip, is_ssrf_risk, has_mixed_scripts]
 
 
 def get_cache_info() -> dict:

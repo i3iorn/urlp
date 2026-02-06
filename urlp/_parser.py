@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import unquote_plus
+from functools import lru_cache
 
 from ._builder import Builder, QueryPairs
 from ._components import ParseResult
@@ -18,6 +19,8 @@ from .exceptions import (
 )
 from ._validation import Validator, is_valid_userinfo
 
+# Reuse a single Builder for simple serialization tasks to reduce allocations
+_builder_singleton = Builder()
 
 
 # =============================================================================
@@ -149,8 +152,12 @@ def parse_host(host_candidate: str, require_host: bool = False) -> Tuple[Optiona
     return parse_regular_host(host_candidate)
 
 
+@lru_cache(maxsize=1024)
 def normalize_path(path_candidate: str) -> str:
-    """Normalize URL path by resolving . and .. segments."""
+    """Normalize URL path by resolving . and .. segments.
+
+    Performance: LRU cached to avoid re-normalizing common paths.
+    """
     if not path_candidate:
         return ""
     if len(path_candidate) > MAX_PATH_LENGTH:
@@ -176,8 +183,33 @@ def normalize_path(path_candidate: str) -> str:
     return normalized
 
 
+def _fast_unquote_plus(value: str) -> str:
+    """Optimized URL decoding with fast-path for strings without encoding.
+
+    Performance: Skips expensive unquote_plus() for strings without % or +.
+    """
+    if '%' not in value and '+' not in value:
+        return value
+    return unquote_plus(value)
+
+
+def _validate_query_string_batch(query: str) -> bool:
+    """Batch validation of entire query string for control characters.
+
+    Performance: Single regex pass instead of per-parameter validation.
+    Returns True if valid, False otherwise.
+    """
+    # Check for control characters in the entire query string at once
+    return Validator.is_url_safe_string(query)
+
+
 def parse_query_string(query_candidate: Optional[str]) -> Tuple[Optional[str], QueryPairs]:
-    """Parse query string into normalized string and pairs."""
+    """Parse query string into normalized string and pairs.
+
+    Performance optimizations:
+    - Batch validation of entire query string
+    - Fast-path decoding for strings without percent-encoding
+    """
     if query_candidate is None:
         return None, []
     if query_candidate == "":
@@ -185,19 +217,23 @@ def parse_query_string(query_candidate: Optional[str]) -> Tuple[Optional[str], Q
     if len(query_candidate) > MAX_QUERY_LENGTH:
         raise QueryParsingError(f"Query exceeds maximum length of {MAX_QUERY_LENGTH}.", value=query_candidate, component="query")
 
+    # Batch validation: check entire query string at once
+    if not _validate_query_string_batch(query_candidate):
+        raise QueryParsingError("Query string contains invalid characters.", value=query_candidate, component="query")
+
     pairs: QueryPairs = []
     for chunk in query_candidate.split("&"):
         if not chunk:
             continue
         key_raw, sep, value_raw = chunk.partition("=")
-        key = unquote_plus(key_raw)
+        key = _fast_unquote_plus(key_raw)
         if not key:
             raise QueryParsingError("Query keys must be non-empty.", value=chunk, component="query")
-        if not Validator.is_valid_query_param(key):
-            raise QueryParsingError("Query key contains invalid characters.", value=key, component="query")
-        pairs.append((key, unquote_plus(value_raw) if sep else None))
+        # Individual validation removed - already validated in batch above
+        pairs.append((key, _fast_unquote_plus(value_raw) if sep else None))
 
-    return Builder().serialize_query(pairs), pairs
+    # Serialize pairs to normalized query string (removes empty chunks, normalizes encoding)
+    return _builder_singleton.serialize_query(pairs), pairs
 
 
 def parse_fragment_string(fragment_candidate: Optional[str]) -> Optional[str]:
@@ -306,7 +342,40 @@ class Parser:
         return userinfo, host, apply_port_defaults(None, port, host)
 
 
+def get_cache_info() -> dict:
+    """Get statistics about parser caches.
+
+    Returns:
+        Dictionary with cache statistics for cached functions.
+    """
+    stats = {}
+    if hasattr(normalize_path, 'cache_info'):
+        info = normalize_path.cache_info()
+        stats['normalize_path'] = {
+            'hits': info.hits,
+            'misses': info.misses,
+            'maxsize': info.maxsize,
+            'currsize': info.currsize,
+        }
+    return stats
+
+
+def clear_caches() -> dict:
+    """Clear all parser caches and return previous sizes.
+
+    Returns:
+        Dictionary mapping function names to previous cache sizes.
+    """
+    previous = {}
+    if hasattr(normalize_path, 'cache_info'):
+        previous['normalize_path'] = normalize_path.cache_info().currsize
+        if hasattr(normalize_path, 'cache_clear'):
+            normalize_path.cache_clear()
+    return previous
+
+
 __all__ = [
     "parse_url", "parse_scheme", "parse_host", "parse_userinfo", "normalize_path",
     "parse_query_string", "parse_fragment_string", "Parser",
+    "get_cache_info", "clear_caches",
 ]

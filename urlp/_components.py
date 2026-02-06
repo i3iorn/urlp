@@ -7,16 +7,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple
+import sys
 
 QueryPairs = List[Tuple[str, Optional[str]]]
 
+# Check if we can use slots (Python 3.10+)
+_SUPPORTS_SLOTS = sys.version_info >= (3, 10)
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, slots=_SUPPORTS_SLOTS)
 class ParseResult:
     """Result of parsing a URL string.
 
     This immutable dataclass contains all components extracted from a URL,
     making the parser stateless and thread-safe.
+
+    Performance: Uses __slots__ on Python 3.10+ for reduced memory footprint.
     """
     scheme: Optional[str] = None
     userinfo: Optional[str] = None
@@ -41,12 +47,14 @@ class ParseResult:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=_SUPPORTS_SLOTS)
 class URLComponents:
     """Components of a URL for building or manipulation.
 
     Unlike ParseResult, this can be used for constructing URLs
     with all components optional.
+
+    Performance: Uses __slots__ on Python 3.10+ for reduced memory footprint.
     """
     scheme: Optional[str] = None
     userinfo: Optional[str] = None

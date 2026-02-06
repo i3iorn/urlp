@@ -16,6 +16,18 @@ QueryPairs = List[Tuple[str, Optional[str]]]
 # Use centralized pattern
 _PERCENT_ENCODE_PATTERN = PATTERNS["percent_encode"]
 
+# LRU-cached helper for query encoding across calls to avoid rebuilding per-call cache
+@lru_cache(maxsize=8192)
+def _encode_for_query(value: str, safe: str) -> str:
+    """Encode a query component with quote_plus and normalize percent-encodings to uppercase.
+
+    This function is cached across serialize_query calls to amortize the cost
+    of percent-encoding for repeated keys/values.
+    """
+    encoded = quote_plus(value, safe=safe)
+    # Normalize percent-encodings to uppercase
+    return _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded)
+
 
 class Builder:
     """URL composition and building utilities.
@@ -212,6 +224,16 @@ class Builder:
         # Uppercase percent-encodings to canonical form using pre-compiled pattern
         return _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded)
 
+    @staticmethod
+    def _fast_unquote_plus(value: str) -> str:
+        """Optimized URL decoding with fast-path for strings without encoding.
+
+        Performance: Skips expensive unquote_plus() for strings without % or +.
+        """
+        if '%' not in value and '+' not in value:
+            return value
+        return unquote_plus(value)
+
     def parse_query(self, query: Optional[str]) -> QueryPairs:
         """Parse a query string into a list of key-value pairs.
 
@@ -236,6 +258,8 @@ class Builder:
             [('flag', None), ('key', 'value')]
             >>> builder.parse_query('name=hello+world')
             [('name', 'hello world')]
+
+        Performance: Uses fast-path decoding for strings without percent-encoding.
         """
         if query is None or query == "":
             return []
@@ -245,10 +269,10 @@ class Builder:
                 continue
             # Use partition for better performance
             key_raw, sep, value_raw = chunk.partition("=")
-            key = unquote_plus(key_raw)
+            key = self._fast_unquote_plus(key_raw)
             if not key:
                 raise URLBuildError("Query keys must be non-empty.", value=chunk, component="query")
-            value = unquote_plus(value_raw) if sep else None
+            value = self._fast_unquote_plus(value_raw) if sep else None
             pairs.append((key, value))
         return pairs
 
@@ -261,15 +285,9 @@ class Builder:
         if not params:
             return ""
         encoded: List[str] = []
-        # Cache for percent-encoded keys/values
-        encode_cache: Dict[str, str] = {}
-        def encode(val):
-            if val in encode_cache:
-                return encode_cache[val]
-            encoded_val = quote_plus(val, safe=query_safe)
-            encoded_val = _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded_val)
-            encode_cache[val] = encoded_val
-            return encoded_val
+        # Use module-level LRU cache to reduce repeated encoding work across calls
+        def encode(val: str) -> str:
+            return _encode_for_query(val, query_safe)
         for key, value in params:
             encoded_key = encode(key)
             if value is None:
