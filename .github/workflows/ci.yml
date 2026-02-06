@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  test-build:
+    name: Test, Audit and Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11, 3.12]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml','**/requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install build & test tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade build twine
+          # test / dev tools
+          pip install pytest bandit pip-audit mypy
+          # install package (will install runtime dependencies declared in pyproject.toml)
+          pip install .
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Run mypy
+        run: mypy urlp --ignore-missing-imports || true
+
+      - name: Run Bandit security scan
+        run: bandit -r urlp -lll || true
+
+      - name: Dependency audit (pip-audit)
+        run: pip-audit --progress spinner || true
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Validate distributions with twine
+        run: twine check dist/*
