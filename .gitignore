@@ -154,3 +154,5 @@ htmlcov/
 *.prof
 *.pstats
 /performance/
+/DEPLOYMENT.md
+/performance_report.html
