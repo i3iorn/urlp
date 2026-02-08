@@ -368,6 +368,54 @@ def has_parser_confusion(url: str) -> bool:
     return False
 
 
+def has_credentials(url: str) -> bool:
+    """Detect URLs containing credentials (userinfo) in the authority component.
+
+    URLs with embedded credentials pose security risks:
+    - Credentials may be logged in plaintext
+    - Browser history/cache exposure
+    - Network logs and monitoring tools
+    - Referrer header leakage
+    - MITM attacks if transmitted over HTTP
+
+    RFC 3986 allows userinfo (username:password@host) but it's deprecated
+    for security reasons. Modern applications should use proper authentication
+    mechanisms (OAuth, tokens, etc.) instead of embedding credentials in URLs.
+
+    Args:
+        url: The URL string to check
+
+    Returns:
+        True if credentials are detected, False otherwise
+
+    Examples:
+        >>> has_credentials("http://user:pass@example.com/path")
+        True
+        >>> has_credentials("http://example.com/path")
+        False
+        >>> has_credentials("ftp://admin@ftp.example.com")
+        True
+    """
+    if not isinstance(url, str):
+        return False
+
+    # Must have a scheme to have authority component
+    if '://' not in url:
+        return False
+
+    # Extract authority component (everything between :// and first / or end)
+    after_scheme = url.split('://', 1)[1]
+
+    # Split on first / to get authority
+    if '/' in after_scheme:
+        authority = after_scheme.split('/', 1)[0]
+    else:
+        authority = after_scheme.split('?', 1)[0].split('#', 1)[0]
+
+    # Check for @ sign which indicates userinfo
+    return '@' in authority
+
+
 def extract_host_and_path(url: str) -> Tuple[str, str]:
     """Extract host and path portions from URL for security checks."""
     if '://' not in url:
@@ -477,4 +525,5 @@ __all__ = [
     "is_dangerous_port", "extract_host_and_path", "validate_url_security",
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
+    "has_credentials",
 ]
