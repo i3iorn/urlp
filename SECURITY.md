@@ -4,39 +4,132 @@
 
 **Please do not open a public issue for security vulnerabilities.**
 
-If you discover a security vulnerability in urlps, please report it responsibly by emailing urlps@example.com with:
+If you discover a security vulnerability in urlps, please report it via GitHub Security Advisories or by opening a private security issue.
 
+Include:
 - Description of the vulnerability
-- Steps to reproduce (if applicable)
+- Steps to reproduce
 - Potential impact assessment
-- Suggested fix (if you have one)
+- Suggested fix (if available)
 
-We will acknowledge receipt within 48 hours and provide updates on our progress toward a fix.
+We will acknowledge receipt within 48 hours and provide updates on progress toward a fix.
+
+## Security Features
+
+urlps is designed with security as a priority and includes comprehensive protections:
+
+### Built-in Protections (enabled by default with `parse_url()`)
+
+1. **SSRF Protection**: Blocks private IPs, localhost, loopback addresses, link-local addresses, `.local` and `.internal` domains
+2. **Path Traversal Detection**: Prevents `../` attacks
+3. **Double-Encoding Detection**: Identifies malicious double-encoded characters
+4. **Homograph Attack Prevention**: Detects mixed Unicode scripts
+5. **Open Redirect Detection**: Validates URL structures to prevent redirects
+6. **Component Length Limits**: Conservative limits prevent DoS attacks
+
+### Optional Security Checks
+
+- **DNS Rebinding Detection**: Enable with `check_dns=True` to verify hostnames don't resolve to private IPs
+- **Phishing Domain Checking**: Enable with `check_phishing=True` to check against known phishing domains
+- **Audit Logging**: Use `set_audit_callback()` for security monitoring
+
+## Usage Guidelines
+
+### Secure Parsing (Recommended)
+
+```python
+from urlps import parse_url, InvalidURLError
+
+# Secure by default - automatically blocks malicious patterns
+try:
+    url = parse_url(user_input)
+    # URL is validated and safe to use
+except InvalidURLError as e:
+    # Handle invalid/malicious URL
+    print(f"Rejected: {e}")
+```
+
+### Unsafe Parsing (Internal/Trusted URLs Only)
+
+```python
+from urlps import parse_url_unsafe
+
+# Use ONLY for internal/development URLs you control
+dev_url = parse_url_unsafe("http://localhost:3000/api")
+internal = parse_url_unsafe("http://192.168.1.100/metrics")
+```
+
+### Additional Security Options
+
+```python
+# DNS rebinding protection (performs DNS lookup)
+url = parse_url("https://api.example.com/", check_dns=True)
+
+# Password masking for logs
+url = parse_url("https://user:pass@example.com/")
+safe_string = url.as_string(mask_password=True)  # https://user:***@example.com/
+
+# URL canonicalization for consistent comparisons
+url = parse_url("HTTP://EXAMPLE.COM:80/path")
+canonical = url.canonicalize()  # Normalized for security checks
+```
 
 ## Security Considerations
 
-### URL Validation
+### IDNA/Internationalized Domains
 
-urlps provides RFC 3986-compliant URL parsing and validation. However, you should be aware of:
+When IDNA support is available (`pip install idna`), hostnames containing non-ASCII characters are automatically normalized to Punycode. This prevents certain homograph attacks but be aware:
+- Visually similar characters from different scripts are still possible
+- Always use `parse_url()` (not `parse_url_unsafe()`) for untrusted input
+- The built-in mixed-script detection helps identify suspicious domains
 
-1. **IDNA Processing**: When using IDNA support (`import idna`), hostnames are normalized. Ensure you trust the source of URLs before using them in network requests.
+### URL Components
 
-2. **Relative URL References**: The `parse_relative_reference` function does not apply path normalization. Use with caution when handling user-supplied relative URLs.
+1. **Fragments**: Not transmitted to servers; don't use for sensitive data
+2. **Userinfo**: Credentials in URLs are deprecated; use proper authentication instead
+3. **Query Parameters**: Always percent-encode sensitive data in query strings
+4. **Relative References**: `parse_relative_reference()` doesn't normalize paths; use with caution for untrusted input
 
-3. **Port Validation**: urlps validates well-known ports against scheme defaults. Custom schemes may require additional validation in your application.
+### Environment Variables
 
-4. **Fragment Handling**: URL fragments are not transmitted to servers. Do not use fragments for sensitive information.
+Override component length limits via environment variables (e.g., `URLPS_MAX_URL_LENGTH`). Use caution when increasing limits in security-sensitive contexts as this expands attack surface.
 
-### Best Practices
+## Best Practices
 
-- Always validate URLs before using them in network requests
-- Use the `strict=True` parameter in `parse_url()` to reject private IP literals in production code
-- Keep urlps and its dependencies updated
-- Review security advisories from the Python packaging ecosystem
+✅ **Do:**
+- Use `parse_url()` for all user-supplied URLs
+- Enable `check_dns=True` when making network requests to untrusted domains
+- Use `mask_password=True` when logging URLs
+- Keep urlps updated to receive security patches
+- Use audit callbacks for security monitoring in production
+- Validate URLs before making network requests
+
+❌ **Don't:**
+- Use `parse_url_unsafe()` for untrusted input
+- Disable security checks for user-supplied URLs
+- Store credentials in URLs (use proper authentication mechanisms)
+- Trust fragments for security decisions
+- Increase length limits without understanding DoS implications
 
 ## Supported Versions
 
-| Version | Supported |
-| --- | --- |
-| 0.1.x | ✅ Yes |
-| 0.0.x | ❌ No |
+| Version | Supported | Notes |
+| --- | --- | --- |
+| 0.3.x | ✅ Yes | Current - Full security features |
+| 0.2.x | ⚠️ Limited | Security features added; upgrade recommended |
+| 0.1.x | ❌ No | Legacy - No security protections |
+| 0.0.x | ❌ No | Legacy |
+
+**Recommendation:** Always use the latest 0.3.x version for complete security protection.
+
+## Security Audit
+
+urlps has been designed with security best practices:
+- All user input is validated before processing
+- Component length limits prevent DoS attacks
+- SSRF protections are enabled by default
+- Immutable URL objects prevent accidental modifications
+- Comprehensive test coverage including security-focused tests
+- Static analysis with Bandit security scanner
+
+For security concerns or questions, please refer to our issue tracker or security advisory system.
