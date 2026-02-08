@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import time
 import unicodedata
+from collections import defaultdict, deque
 from functools import lru_cache
-from typing import Optional, Set, Tuple, Union
+from typing import Optional, Set, Tuple, Union, Deque, Dict
 from urllib import request
 from urllib.error import URLError
 from urllib.parse import unquote
@@ -165,10 +167,27 @@ def is_ssrf_risk(host: str) -> bool:
             _is_decimal_ip_private(host) or _is_octal_hex_ip_private(host) or is_private_ip(host))
 
 
-def check_dns_rebinding(host: str, timeout: Optional[float] = None) -> bool:
-    """Check if hostname resolves to safe (non-private) IPs."""
+def check_dns_rebinding(host: str, timeout: Optional[float] = None, enforce_rate_limit: bool = True) -> bool:
+    """Check if hostname resolves to safe (non-private) IPs.
+
+    Args:
+        host: The hostname to check
+        timeout: DNS lookup timeout in seconds
+        enforce_rate_limit: If True, apply DNS rate limiting
+
+    Returns:
+        True if hostname is safe, False otherwise
+    """
     if not isinstance(host, str) or not host:
         return False
+
+    # Check rate limit if enabled
+    if enforce_rate_limit:
+        limiter = get_dns_rate_limiter()
+        if not limiter.is_allowed(host):
+            # Rate limited - return False to prevent lookup
+            return False
+
     if timeout is None:
         timeout = DEFAULT_DNS_TIMEOUT
     host = _strip_ipv6_brackets(host)
@@ -366,6 +385,227 @@ def has_parser_confusion(url: str) -> bool:
         return True
 
     return False
+
+
+class DNSRateLimiter:
+    """Rate limiter for DNS lookups to prevent DoS attacks.
+
+    DNS lookups can be expensive and slow. Attackers might provide many URLs
+    with unique hostnames to trigger excessive DNS queries, causing:
+    - Resource exhaustion (CPU, network, file descriptors)
+    - Network flooding
+    - Upstream DNS server overload
+    - Application slowdown/unavailability
+
+    This rate limiter uses a token bucket algorithm with per-host tracking
+    to prevent abuse while allowing legitimate usage.
+
+    Attributes:
+        max_lookups_per_second: Maximum DNS lookups allowed per second (globally)
+        max_lookups_per_host: Maximum lookups for the same host in time_window
+        time_window: Time window in seconds for per-host limits
+        cleanup_interval: Seconds between cleanup of old tracking data
+    """
+
+    def __init__(
+        self,
+        max_lookups_per_second: float = 10.0,
+        max_lookups_per_host: int = 3,
+        time_window: float = 60.0,
+        cleanup_interval: float = 300.0
+    ):
+        """Initialize DNS rate limiter.
+
+        Args:
+            max_lookups_per_second: Global rate limit (lookups/second)
+            max_lookups_per_host: Max lookups for same host in time_window
+            time_window: Seconds for per-host rate limit window
+            cleanup_interval: Seconds between cleanup of old data
+        """
+        self.max_lookups_per_second = max_lookups_per_second
+        self.max_lookups_per_host = max_lookups_per_host
+        self.time_window = time_window
+        self.cleanup_interval = cleanup_interval
+
+        # Token bucket for global rate limit
+        self.tokens = max_lookups_per_second
+        self.last_update = time.time()
+
+        # Per-host tracking: hostname -> deque of timestamps
+        self.host_lookups: Dict[str, Deque[float]] = defaultdict(deque)
+
+        # Cleanup tracking
+        self.last_cleanup = time.time()
+
+    def _refill_tokens(self) -> None:
+        """Refill tokens based on elapsed time."""
+        now = time.time()
+        elapsed = now - self.last_update
+        self.tokens = min(
+            self.max_lookups_per_second,
+            self.tokens + elapsed * self.max_lookups_per_second
+        )
+        self.last_update = now
+
+    def _cleanup_old_entries(self) -> None:
+        """Remove old entries to prevent memory leak."""
+        now = time.time()
+        if now - self.last_cleanup < self.cleanup_interval:
+            return
+
+        # Remove timestamps older than time_window
+        cutoff = now - self.time_window
+        hosts_to_remove = []
+
+        for host, timestamps in self.host_lookups.items():
+            # Remove old timestamps
+            while timestamps and timestamps[0] < cutoff:
+                timestamps.popleft()
+            # If no recent lookups, mark for removal
+            if not timestamps:
+                hosts_to_remove.append(host)
+
+        # Remove empty hosts
+        for host in hosts_to_remove:
+            del self.host_lookups[host]
+
+        self.last_cleanup = now
+
+    def is_allowed(self, host: str) -> bool:
+        """Check if a DNS lookup for this host is allowed.
+
+        Args:
+            host: The hostname to check
+
+        Returns:
+            True if lookup is allowed, False if rate limited
+
+        Example:
+            >>> limiter = DNSRateLimiter()
+            >>> limiter.is_allowed("example.com")
+            True
+            >>> # After many requests...
+            >>> limiter.is_allowed("example.com")
+            False  # Rate limited
+        """
+        if not isinstance(host, str) or not host:
+            return False
+
+        now = time.time()
+
+        # Check global rate limit (token bucket)
+        self._refill_tokens()
+        if self.tokens < 1.0:
+            return False
+
+        # Check per-host rate limit
+        timestamps = self.host_lookups[host]
+
+        # Remove timestamps outside the time window
+        cutoff = now - self.time_window
+        while timestamps and timestamps[0] < cutoff:
+            timestamps.popleft()
+
+        # Check if host has exceeded its limit
+        if len(timestamps) >= self.max_lookups_per_host:
+            return False
+
+        # Allow the lookup
+        self.tokens -= 1.0
+        timestamps.append(now)
+
+        # Periodic cleanup
+        self._cleanup_old_entries()
+
+        return True
+
+    def record_lookup(self, host: str) -> None:
+        """Record that a DNS lookup was performed (without checking limits).
+
+        Use this when you want to track lookups that were performed through
+        other means (e.g., cached results) to maintain accurate rate limiting.
+
+        Args:
+            host: The hostname that was looked up
+        """
+        if not isinstance(host, str) or not host:
+            return
+
+        now = time.time()
+        self.host_lookups[host].append(now)
+        self._cleanup_old_entries()
+
+    def reset(self) -> None:
+        """Reset all rate limiting state."""
+        self.tokens = self.max_lookups_per_second
+        self.last_update = time.time()
+        self.host_lookups.clear()
+        self.last_cleanup = time.time()
+
+    def get_stats(self) -> dict:
+        """Get current rate limiter statistics.
+
+        Returns:
+            Dict with statistics:
+                - tokens: Current token count
+                - tracked_hosts: Number of hosts being tracked
+                - total_recent_lookups: Total lookups in time window
+        """
+        self._refill_tokens()
+        total_lookups = sum(len(timestamps) for timestamps in self.host_lookups.values())
+        return {
+            "tokens": self.tokens,
+            "tracked_hosts": len(self.host_lookups),
+            "total_recent_lookups": total_lookups,
+        }
+
+
+# Global DNS rate limiter instance
+_dns_rate_limiter: Optional[DNSRateLimiter] = None
+
+
+def get_dns_rate_limiter() -> DNSRateLimiter:
+    """Get or create the global DNS rate limiter.
+
+    Returns:
+        The global DNSRateLimiter instance
+    """
+    global _dns_rate_limiter
+    if _dns_rate_limiter is None:
+        _dns_rate_limiter = DNSRateLimiter()
+    return _dns_rate_limiter
+
+
+def reset_dns_rate_limiter() -> None:
+    """Reset the global DNS rate limiter.
+
+    Useful for testing or when you want to clear all rate limiting state.
+    """
+    global _dns_rate_limiter
+    if _dns_rate_limiter is not None:
+        _dns_rate_limiter.reset()
+
+
+def check_dns_rate_limit(host: str) -> bool:
+    """Check if DNS lookup for this host is allowed under rate limits.
+
+    This is a convenience function that uses the global rate limiter.
+
+    Args:
+        host: The hostname to check
+
+    Returns:
+        True if lookup is allowed, False if rate limited
+
+    Example:
+        >>> check_dns_rate_limit("example.com")
+        True
+        >>> # After many rapid requests...
+        >>> check_dns_rate_limit("example.com")
+        False  # Rate limited
+    """
+    limiter = get_dns_rate_limiter()
+    return limiter.is_allowed(host)
 
 
 def has_suspicious_punycode(host: str) -> bool:
@@ -785,4 +1025,5 @@ __all__ = [
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
     "has_credentials", "has_query_injection", "has_suspicious_punycode",
+    "DNSRateLimiter", "get_dns_rate_limiter", "reset_dns_rate_limiter", "check_dns_rate_limit",
 ]
