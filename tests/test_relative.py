@@ -1,12 +1,12 @@
 """Tests for relative URL reference parsing and building."""
 import pytest
 
-from urlp._relative import (
+from urlps._relative import (
     parse_relative_reference,
     build_relative_reference,
     round_trip_relative,
 )
-from urlp.exceptions import InvalidURLError
+from urlps.exceptions import InvalidURLError
 
 
 class TestParseRelativeReference:

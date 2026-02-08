@@ -9,7 +9,7 @@ import sys
 import subprocess
 from pathlib import Path
 
-# Add parent directory to path so we can import urlp
+# Add parent directory to path so we can import urlps
 sys.path.insert(0, str(Path(__file__).parent.parent))
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -24,7 +24,7 @@ def run_pytest_benchmarks():
     script_dir = Path(__file__).parent
     subprocess.run([
         sys.executable, "-m", "pytest",
-        str(script_dir / "urllib_vs_urlp.py"),
+        str(script_dir / "urllib_vs_urlps.py"),
         "-v", "--benchmark-only"
     ])
 
@@ -34,7 +34,7 @@ def run_manual_analysis():
     print("\n" + "="*80)
     print("RUNNING MANUAL PERFORMANCE ANALYSIS")
     print("="*80 + "\n")
-    from urllib_vs_urlp import manual_performance_analysis
+    from urllib_vs_urlps import manual_performance_analysis
     manual_performance_analysis()
 
 
@@ -90,7 +90,7 @@ def show_docs():
 ╚════════════════════════════════════════════════════════════════════════════╝
 
 FILES CREATED:
-  • urllib_vs_urlp.py              - Main benchmark suite (14 tests)
+  • urllib_vs_urlps.py              - Main benchmark suite (14 tests)
   • performance_report_generator.py - HTML report generator
   • performance_report.html         - Generated interactive dashboard
   • PERFORMANCE_TESTING.md          - Full documentation
@@ -99,14 +99,14 @@ FILES CREATED:
 QUICK COMMANDS:
 
   [1] Pytest Benchmarks (Recommended)
-      $ python -m pytest urllib_vs_urlp.py -v --benchmark-only
+      $ python -m pytest urllib_vs_urlps.py -v --benchmark-only
       
       Advanced options:
-      $ pytest urllib_vs_urlp.py -v --benchmark-only --benchmark-min-rounds=20
-      $ pytest urllib_vs_urlp.py::test_urllib_simple -v --benchmark-only
+      $ pytest urllib_vs_urlps.py -v --benchmark-only --benchmark-min-rounds=20
+      $ pytest urllib_vs_urlps.py::test_urllib_simple -v --benchmark-only
 
   [2] Manual Analysis
-      $ python -c "from urllib_vs_urlp import manual_performance_analysis; manual_performance_analysis()"
+      $ python -c "from urllib_vs_urlps import manual_performance_analysis; manual_performance_analysis()"
       
   [3] HTML Report
       $ python performance_report_generator.py
@@ -124,7 +124,7 @@ TEST SCENARIOS:
 
 EXPECTED RESULTS:
   urllib.parse is generally 5-10x faster for basic operations
-  urlp provides richer validation and RFC compliance
+  urlps provides richer validation and RFC compliance
   
   Average Performance Ratio: ~13x (urllib faster)
 
@@ -137,7 +137,7 @@ WHEN TO USE:
   │ • Maximum performance needed      │
   └───────────────────────────────────┘
   
-  ┌─ urlp ────────────────────────────┐
+  ┌─ urlps ────────────────────────────┐
   │ • RFC 3986 compliance required    │
   │ • Advanced validation needed      │
   │ • URL modification/building       │
@@ -146,7 +146,7 @@ WHEN TO USE:
 
 KEY FINDINGS:
 
-  Scenario              urllib      urlp       Ratio
+  Scenario              urllib      urlps       Ratio
   ─────────────────────────────────────────────────────
   Simple URLs          ~1.3 ms    ~13.0 ms     10x
   Complex URLs        ~12.8 ms    ~63.5 ms      5x
@@ -162,7 +162,7 @@ DOCUMENTATION:
   • PERFORMANCE_SUMMARY.md  - Quick start guide
 
 NEXT STEPS:
-  1. Run benchmarks: python -m pytest urllib_vs_urlp.py -v --benchmark-only
+  1. Run benchmarks: python -m pytest urllib_vs_urlps.py -v --benchmark-only
   2. Generate report: python performance_report_generator.py
   3. Read docs: cat PERFORMANCE_TESTING.md
   4. Analyze results in performance_report.html

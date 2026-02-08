@@ -39,9 +39,9 @@ except ImportError:
     def assume(condition):
         pass
 
-from urlp import parse_url, parse_url_unsafe, URLParseError, InvalidURLError
-from urlp._validation import Validator as ValidatorClass, is_valid_userinfo
-from urlp import _security
+from urlps import parse_url, parse_url_unsafe, URLParseError, InvalidURLError
+from urlps._validation import Validator as ValidatorClass, is_valid_userinfo
+from urlps import _security
 
 
 class TestParserFuzzing:

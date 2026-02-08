@@ -1,6 +1,6 @@
 """Centralized regex patterns for URL parsing and validation.
 
-All regex patterns used throughout the urlp library are defined here
+All regex patterns used throughout the urlps library are defined here
 for consistency and easier maintenance.
 """
 from __future__ import annotations

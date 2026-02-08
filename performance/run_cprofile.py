@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run cProfile over a batch of URLs using urlp.parse_url and produce aggregated stats.
+"""Run cProfile over a batch of URLs using urlps.parse_url and produce aggregated stats.
 
 Produces:
  - performance/profile_results.prof  (raw cProfile data)
@@ -24,7 +24,7 @@ import pstats
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from urlp import parse_url
+from urlps import parse_url
 
 OUTPUT_DIR = Path(__file__).parent
 PROF_PATH = OUTPUT_DIR / "profile_results.prof"

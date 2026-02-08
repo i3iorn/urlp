@@ -1,6 +1,6 @@
-# Contributing to urlp
+# Contributing to urlps
 
-Thank you for considering contributing to urlp! We welcome contributions in the form of:
+Thank you for considering contributing to urlps! We welcome contributions in the form of:
 
 - Bug reports and feature requests (via GitHub Issues)
 - Code improvements and bug fixes (via Pull Requests)
@@ -11,8 +11,8 @@ Thank you for considering contributing to urlp! We welcome contributions in the 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/micro/urlp.git
-   cd urlp
+   git clone https://github.com/micro/urlps.git
+   cd urlps
    ```
 
 2. Create a virtual environment:
@@ -40,17 +40,17 @@ pytest tests/test_parser.py -v
 
 Run with coverage:
 ```bash
-pytest --cov=urlp --cov-report=html
+pytest --cov=urlps --cov-report=html
 ```
 
 ## Code Quality
 
 We use several tools to maintain code quality:
 
-- **Type checking**: `mypy urlp`
-- **Linting**: `flake8 urlp tests`
-- **Import sorting**: `isort urlp tests`
-- **Security**: `bandit -r urlp`
+- **Type checking**: `mypy urlps`
+- **Linting**: `flake8 urlps tests`
+- **Import sorting**: `isort urlps tests`
+- **Security**: `bandit -r urlps`
 
 Or run all checks with tox:
 ```bash
@@ -79,7 +79,7 @@ tox
 
 When reporting bugs, please include:
 - Python version
-- urlp version
+- urlps version
 - Minimal reproducible example
 - Expected vs. actual behavior
 

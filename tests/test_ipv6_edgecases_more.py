@@ -1,7 +1,7 @@
 import pytest
 
-from urlp._parser import Parser
-from urlp._validation import Validator
+from urlps._parser import Parser
+from urlps._validation import Validator
 
 
 def test_parser_accepts_compressed_ipv6_literals():

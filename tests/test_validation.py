@@ -1,4 +1,4 @@
-from urlp._validation import Validator
+from urlps._validation import Validator
 
 
 def test_is_valid_scheme_basic():

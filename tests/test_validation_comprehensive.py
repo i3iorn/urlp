@@ -3,10 +3,10 @@ Additional comprehensive validation tests for urlp.
 Tests edge cases, security considerations, and boundary conditions.
 """
 import pytest
-from urlp._validation import Validator
-from urlp._security import is_private_ip
-from urlp import parse_url, parse_url_unsafe
-from urlp.exceptions import InvalidURLError, URLParseError
+from urlps._validation import Validator
+from urlps._security import is_private_ip
+from urlps import parse_url, parse_url_unsafe
+from urlps.exceptions import InvalidURLError, URLParseError
 
 
 class TestSchemeValidationComprehensive:
@@ -410,7 +410,7 @@ class TestUnicodeHandling:
 
     def test_unicode_in_path(self):
         """Unicode in path should be percent-encoded"""
-        from urlp import compose_url
+        from urlps import compose_url
         result = compose_url({
             "scheme": "http",
             "host": "example.com",
@@ -420,7 +420,7 @@ class TestUnicodeHandling:
 
     def test_emoji_in_components(self):
         """Emoji and other Unicode should be handled"""
-        from urlp import compose_url
+        from urlps import compose_url
         result = compose_url({
             "scheme": "http",
             "host": "example.com",

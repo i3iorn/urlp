@@ -68,5 +68,5 @@ When creating a new release, copy this template:
 
 ---
 
-[Unreleased]: https://github.com/micro/urlp/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/micro/urlp/releases/tag/v0.2.1
+[Unreleased]: https://github.com/micro/urlps/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/micro/urlps/releases/tag/v0.2.1

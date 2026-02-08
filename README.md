@@ -1,4 +1,4 @@
-# urlp
+# urlps
 
 Lightweight URL parsing/building helpers with optional immutability controls and comprehensive security features. The library models RFC 3986 components, normalizes paths, percent-encodes where needed, and surfaces ergonomic helpers for working with userinfo/netloc metadata plus scheme-aware defaults.
 
@@ -7,7 +7,7 @@ Lightweight URL parsing/building helpers with optional immutability controls and
 ## Installation
 
 ```bash
-pip install urlp
+pip install urlps
 ```
 
 When working on the repo directly, create a virtual environment and install the local package in editable mode (include dev extras for linters/tests):
@@ -39,7 +39,7 @@ pip install -e ".[dev]"
 Use the top-level helpers for common URL operations.
 
 ```python
-from urlp import parse_url, parse_url_unsafe, build
+from urlps import parse_url, parse_url_unsafe, build
 
 # parse_url is SECURE BY DEFAULT - blocks SSRF risks, path traversal, etc.
 url = parse_url("https://api.example.com/data?token=abc#section")
@@ -88,7 +88,7 @@ Use `parse_url_unsafe()` only when you explicitly need to allow these patterns.
 ## Usage
 
 ```python
-from urlp import parse_url, parse_url_unsafe, parse_relative_reference, build_relative_reference
+from urlps import parse_url, parse_url_unsafe, parse_relative_reference, build_relative_reference
 
 # parse_url is secure by default
 url = parse_url("https://user:pass@example.com:8080/download?token=abc")
@@ -122,7 +122,7 @@ rebuilt = build_relative_reference(parts["path"], query=parts["query"], fragment
 ### Basic Usage
 
 ```python
-from urlp import parse_url, build
+from urlps import parse_url, build
 
 # Parse a standard URL
 url = parse_url("https://user:pass@example.com:8080/download?token=abc")
@@ -145,7 +145,7 @@ print(url_str)  # https://example.com:8443/api/data?x=1&x=2#section
 
 #### 1. Invalid Host
 ```python
-from urlp import parse_url, HostValidationError
+from urlps import parse_url, HostValidationError
 try:
     parse_url("https://exa$mple.com/")
 except HostValidationError as e:
@@ -154,7 +154,7 @@ except HostValidationError as e:
 
 #### 2. Invalid Port
 ```python
-from urlp import parse_url, PortValidationError
+from urlps import parse_url, PortValidationError
 try:
     parse_url("https://example.com:abc/")
 except PortValidationError as e:
@@ -163,7 +163,7 @@ except PortValidationError as e:
 
 #### 3. Path Traversal
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 try:
     parse_url("https://example.com/../../etc/passwd")
 except InvalidURLError as e:
@@ -172,7 +172,7 @@ except InvalidURLError as e:
 
 #### 4. Double-Encoded Characters
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 try:
     parse_url("https://example.com/%252e%252e/")
 except InvalidURLError as e:
@@ -181,7 +181,7 @@ except InvalidURLError as e:
 
 #### 5. Mixed Unicode Scripts (Homograph Attack)
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 try:
     parse_url("https://exаmple.com/")  # Note: Cyrillic 'а'
 except InvalidURLError as e:
@@ -190,7 +190,7 @@ except InvalidURLError as e:
 
 #### 6. Empty or Non-String Input
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 try:
     parse_url("")
 except InvalidURLError as e:
@@ -203,7 +203,7 @@ except InvalidURLError as e:
 
 #### 7. Query Parameter Edge Cases
 ```python
-from urlp import parse_url
+from urlps import parse_url
 url = parse_url("https://example.com/?a=1&&b=2")
 print(url.query_params)  # [('a', '1'), ('b', '2')]
 url2 = parse_url("https://example.com/?=value")  # Raises InvalidURLError
@@ -211,7 +211,7 @@ url2 = parse_url("https://example.com/?=value")  # Raises InvalidURLError
 
 #### 8. IPv6 and IDNA Handling
 ```python
-from urlp import parse_url
+from urlps import parse_url
 url = parse_url("http://[2001:db8::1]:8080/")
 print(url.host)  # [2001:db8::1]
 url_idna = parse_url("http://xn--e1afmkfd.xn--p1ai/")
@@ -220,7 +220,7 @@ print(url_idna.host)  # xn--e1afmkfd.xn--p1ai
 
 #### 9. SSRF and Security Edge Cases
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 for test_url in [
     "http://localhost/",
     "http://127.0.0.1/",
@@ -236,14 +236,14 @@ for test_url in [
 
 ## Security Features
 
-urlp includes comprehensive security features to protect against common URL-based attacks.
+urlps includes comprehensive security features to protect against common URL-based attacks.
 
 ### Quick Security Setup
 
 `parse_url()` is secure by default - no special setup needed:
 
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 
 try:
     url = parse_url(user_input)
@@ -265,7 +265,7 @@ Security checks enabled by default:
 Server-Side Request Forgery (SSRF) attacks trick servers into making requests to internal resources. The `parse_url()` function blocks these by default:
 
 ```python
-from urlp import parse_url, parse_url_unsafe, InvalidURLError
+from urlps import parse_url, parse_url_unsafe, InvalidURLError
 
 # These will raise InvalidURLError with parse_url():
 parse_url("http://localhost/admin")           # Blocked: localhost
@@ -290,7 +290,7 @@ url = parse_url_unsafe("http://192.168.1.1/")               # Allowed
 DNS rebinding attacks use hostnames that resolve to internal IPs. Enable `check_dns=True` to perform actual DNS resolution:
 
 ```python
-from urlp import parse_url
+from urlps import parse_url
 
 # Performs DNS lookup to verify host resolves to public IP
 url = parse_url("https://api.example.com/", check_dns=True)
@@ -306,13 +306,13 @@ url = parse_url("https://api.example.com/", check_dns=True)
 High-level security checks are available via the public `parse_url()` helpers (see above). For most use cases prefer `parse_url(..., check_dns=True)` or `parse_url_unsafe()` for trusted input.
 
 Advanced, lower-level validators and security helpers live in internal modules:
-- Pure validators: `urlp._validation.Validator` (e.g., host/IPv4/IPv6 validation, cache management).
-- Security helpers: `urlp._security` (e.g., `is_ssrf_risk`, `check_dns_rebinding`, `has_path_traversal`, `is_open_redirect_risk`, `has_double_encoding`, `has_mixed_scripts`, `is_private_ip`).
+- Pure validators: `urlps._validation.Validator` (e.g., host/IPv4/IPv6 validation, cache management).
+- Security helpers: `urlps._security` (e.g., `is_ssrf_risk`, `check_dns_rebinding`, `has_path_traversal`, `is_open_redirect_risk`, `has_double_encoding`, `has_mixed_scripts`, `is_private_ip`).
 
 Examples (high-level and advanced):
 
 ```python
-from urlp import parse_url, InvalidURLError
+from urlps import parse_url, InvalidURLError
 
 # High-level: secure parsing, optionally perform DNS checks
 try:
@@ -321,7 +321,7 @@ except InvalidURLError as e:
     print(f"Rejected URL: {e}")
 
 # Advanced (internal helpers) — import from internal modules when you need focused checks
-from urlp._security import is_ssrf_risk, check_dns_rebinding, has_path_traversal
+from urlps._security import is_ssrf_risk, check_dns_rebinding, has_path_traversal
 
 is_ssrf_risk("localhost")           # True
 check_dns_rebinding("example.com")  # True/False depending on resolution
@@ -333,7 +333,7 @@ has_path_traversal("../../../etc/passwd")  # True
 Canonicalize URLs for consistent security comparisons:
 
 ```python
-from urlp import parse_url
+from urlps import parse_url
 
 url = parse_url("HTTP://EXAMPLE.COM:80/path?z=1&a=2")
 canonical = url.canonicalize()
@@ -350,7 +350,7 @@ print(canonical.as_string())  # canonical string form
 Prevent credential leakage in logs:
 
 ```python
-from urlp import parse_url
+from urlps import parse_url
 
 url = parse_url("https://admin:secret123@api.example.com/")
 
@@ -368,7 +368,7 @@ print(url.as_string(mask_password=True))
 Monitor URL parsing for security auditing:
 
 ```python
-from urlp import parse_url, set_audit_callback
+from urlps import parse_url, set_audit_callback
 import logging
 
 def audit_url_parsing(raw_url, parsed_url, exception):
@@ -385,10 +385,10 @@ url = parse_url("https://example.com/")
 
 ### Cache Management
 
-Clear validation caches after processing untrusted input. The `Validator` class lives in `urlp._validation` and exposes cache helpers.
+Clear validation caches after processing untrusted input. The `Validator` class lives in `urlps._validation` and exposes cache helpers.
 
 ```python
-from urlp._validation import Validator
+from urlps._validation import Validator
 
 # Get cache statistics
 stats = Validator.get_cache_info()
@@ -400,7 +400,7 @@ previous_sizes = Validator.clear_caches()
 
 ### Component Length Limits
 
-urlp enforces conservative length limits to prevent DoS attacks while covering >99.99% of real-world URLs:
+urlps enforces conservative length limits to prevent DoS attacks while covering >99.99% of real-world URLs:
 
 | Component | Max Length |
 |-----------|------------|
@@ -413,40 +413,40 @@ urlp enforces conservative length limits to prevent DoS attacks while covering >
 | Userinfo | 128 chars |
 
 Notes:
-- These limits are intentionally conservative (see `urlp/constants.py`) to reduce attack surface while still accommodating long query strings used in analytics and tracking.
+- These limits are intentionally conservative (see `urlps/constants.py`) to reduce attack surface while still accommodating long query strings used in analytics and tracking.
 - If you need to accept unusually long URLs (rare), consider a lenient configuration or an explicit opt-in that raises limits for trusted contexts. When changing defaults, include a migration note in your release and add boundary tests for the new limits.
 
 ## Environment variable overrides
 
-This project supports overriding several security-related maximum length constants via environment variables. Overrides are applied at import time, so set environment variables before importing `urlp` or `urlp.constants`.
+This project supports overriding several security-related maximum length constants via environment variables. Overrides are applied at import time, so set environment variables before importing `urlps` or `urlps.constants`.
 
 Supported environment variables (maps to module constant):
 
-- URLP_MAX_URL_LENGTH -> MAX_URL_LENGTH
-- URLP_MAX_SCHEME_LENGTH -> MAX_SCHEME_LENGTH
-- URLP_MAX_HOST_LENGTH -> MAX_HOST_LENGTH
-- URLP_MAX_PATH_LENGTH -> MAX_PATH_LENGTH
-- URLP_MAX_QUERY_LENGTH -> MAX_QUERY_LENGTH
-- URLP_MAX_FRAGMENT_LENGTH -> MAX_FRAGMENT_LENGTH
-- URLP_MAX_USERINFO_LENGTH -> MAX_USERINFO_LENGTH
-- URLP_MAX_IPV6_STRING_LENGTH -> MAX_IPV6_STRING_LENGTH
+- URLPS_MAX_URL_LENGTH -> MAX_URL_LENGTH
+- URLPS_MAX_SCHEME_LENGTH -> MAX_SCHEME_LENGTH
+- URLPS_MAX_HOST_LENGTH -> MAX_HOST_LENGTH
+- URLPS_MAX_PATH_LENGTH -> MAX_PATH_LENGTH
+- URLPS_MAX_QUERY_LENGTH -> MAX_QUERY_LENGTH
+- URLPS_MAX_FRAGMENT_LENGTH -> MAX_FRAGMENT_LENGTH
+- URLPS_MAX_USERINFO_LENGTH -> MAX_USERINFO_LENGTH
+- URLPS_MAX_IPV6_STRING_LENGTH -> MAX_IPV6_STRING_LENGTH
 
 Behavior
 
 - Values must be positive integers. Non-integer or non-positive values are ignored and a UserWarning is emitted.
-- Overrides are applied at import time: change environment variables and re-import the `urlp.constants` module (or restart the Python process) to pick up new values.
+- Overrides are applied at import time: change environment variables and re-import the `urlps.constants` module (or restart the Python process) to pick up new values.
 
 Examples
 
 PowerShell (Windows):
 
-$env:URLP_MAX_URL_LENGTH = "65536"
-python -c "import urlp.constants as c; print(c.MAX_URL_LENGTH)"
+$env:URLPS_MAX_URL_LENGTH = "65536"
+python -c "import urlps.constants as c; print(c.MAX_URL_LENGTH)"
 
 POSIX shell:
 
-export URLP_MAX_URL_LENGTH=65536
-python -c 'import urlp.constants as c; print(c.MAX_URL_LENGTH)'
+export URLPS_MAX_URL_LENGTH=65536
+python -c 'import urlps.constants as c; print(c.MAX_URL_LENGTH)'
 
 Notes
 
@@ -463,8 +463,8 @@ Notes
 ## Running Tests
 
 ```powershell
-cd C:\Users\micro\Code\Projects\urlp
-$env:PYTHONPATH="C:\Users\micro\Code\Projects\urlp"
+cd C:\Users\micro\Code\Projects\urlps
+$env:PYTHONPATH="C:\Users\micro\Code\Projects\urlps"
 pytest
 ```
 
@@ -472,17 +472,17 @@ pytest
 
 | Component | Purpose |
 | --- | --- |
-| `urlp.URL` | High-level immutable URL value object with `userinfo`, `netloc`, `with_*` helpers, and serialization via `as_string()`. |
-| `urlp.parse_url` | Parse a URL string securely (SSRF protection enabled). Supports `allow_custom_scheme` and `check_dns` options. |
-| `urlp.parse_url_unsafe` | Parse a URL without security checks. Use only for trusted input. Supports `allow_custom_scheme`, `strict`, `debug`, and `check_dns`. |
-| `urlp.build` | Build a URL string from individual component arguments (scheme, host, port, path, query, fragment, userinfo). |
-| `urlp.compose_url` | Compose a URL string from a components dict (wrapper around `Builder().compose`). |
-| `urlp.parse_relative_reference` | Split a scheme-less reference into raw `path`, `query`, and `fragment` without normalization. |
-| `urlp.build_relative_reference` | Compose a relative reference using raw segments so round-tripping preserves the original text. |
-| `urlp.round_trip_relative` | Convenience helper to parse and rebuild the same relative string, useful for validation pipelines. |
-| `urlp.Validator` | Static validation methods: `is_ssrf_risk`, `resolve_host_safe`, `has_path_traversal`, `is_open_redirect_risk`, `has_double_encoding`, `has_mixed_scripts`, `is_private_ip`, and cache management. |
-| `urlp.set_audit_callback` | Set a callback function for URL parsing audit logging. |
-| `urlp.get_audit_callback` | Get the current audit callback function. |
+| `urlps.URL` | High-level immutable URL value object with `userinfo`, `netloc`, `with_*` helpers, and serialization via `as_string()`. |
+| `urlps.parse_url` | Parse a URL string securely (SSRF protection enabled). Supports `allow_custom_scheme` and `check_dns` options. |
+| `urlps.parse_url_unsafe` | Parse a URL without security checks. Use only for trusted input. Supports `allow_custom_scheme`, `strict`, `debug`, and `check_dns`. |
+| `urlps.build` | Build a URL string from individual component arguments (scheme, host, port, path, query, fragment, userinfo). |
+| `urlps.compose_url` | Compose a URL string from a components dict (wrapper around `Builder().compose`). |
+| `urlps.parse_relative_reference` | Split a scheme-less reference into raw `path`, `query`, and `fragment` without normalization. |
+| `urlps.build_relative_reference` | Compose a relative reference using raw segments so round-tripping preserves the original text. |
+| `urlps.round_trip_relative` | Convenience helper to parse and rebuild the same relative string, useful for validation pipelines. |
+| `urlps.Validator` | Static validation methods: `is_ssrf_risk`, `resolve_host_safe`, `has_path_traversal`, `is_open_redirect_risk`, `has_double_encoding`, `has_mixed_scripts`, `is_private_ip`, and cache management. |
+| `urlps.set_audit_callback` | Set a callback function for URL parsing audit logging. |
+| `urlps.get_audit_callback` | Get the current audit callback function. |
 
 ### URL Instance Methods
 
@@ -501,11 +501,11 @@ Note: Low-level classes `Parser` and `Builder` remain available but are consider
 
 ## Comparison with urllib.parse
 
-When should you use **urlp** instead of the standard library `urllib.parse`?
+When should you use **urlps** instead of the standard library `urllib.parse`?
 
 ### Feature Comparison
 
-| Feature | `urllib.parse` | `urlp` |
+| Feature | `urllib.parse` | `urlps` |
 | --- | --- | --- |
 | **Basic URL parsing** | ✓ | ✓ |
 | **URL composition** | ✓ | ✓ |
@@ -537,10 +537,10 @@ When should you use **urlp** instead of the standard library `urllib.parse`?
 - **Working in constrained environments** — guaranteed to be available everywhere
 - **Legacy code compatibility** — existing codebases already use it
 
-### Use urlp when:
+### Use urlps when:
 
 - **Security is important** — SSRF protection, path traversal detection, DNS rebinding checks, and more
-- **You need RFC 3986 strict compliance** — urlp enforces the standard more strictly
+- **You need RFC 3986 strict compliance** — urlps enforces the standard more strictly
 - **Working with authority components** — `.userinfo`, `.netloc`, and `.with_netloc()` save tedious string splitting
 - **Building immutable URL objects** — the `URL` class and `with_*` methods enable functional patterns
 - **Validating URLs rigorously** — scheme-aware port validation, IPv6 literal checking, IDNA encoding
@@ -552,15 +552,15 @@ When should you use **urlp** instead of the standard library `urllib.parse`?
 
 ### Performance Notes
 
-For simple, one-off URL parsing tasks, `urllib.parse` is often slightly faster due to its minimal approach. However, urlp's validation and normalization add meaningful overhead only on complex URLs or in edge cases. For typical application workloads (parsing a few URLs per request), the difference is negligible and urlp's richer API often saves downstream validation logic.
+For simple, one-off URL parsing tasks, `urllib.parse` is often slightly faster due to its minimal approach. However, urlps's validation and normalization add meaningful overhead only on complex URLs or in edge cases. For typical application workloads (parsing a few URLs per request), the difference is negligible and urlps's richer API often saves downstream validation logic.
 
 When comparing:
 - **Simple URL parsing:** urllib.parse is ~2–5% faster for basic cases
 - **Complex URLs with all components:** Performance is comparable (~1–2% difference)
-- **Authority manipulation:** urlp is much faster; urllib.parse requires regex/split/join
-- **Query extraction:** Both are fast; urlp includes query_pairs by default
+- **Authority manipulation:** urlps is much faster; urllib.parse requires regex/split/join
+- **Query extraction:** Both are fast; urlps includes query_pairs by default
 
-For most applications, **choose urlp if you need its ergonomic or validation features**, and choose `urllib.parse` if you want zero dependencies and fastest-possible simple parsing.
+For most applications, **choose urlps if you need its ergonomic or validation features**, and choose `urllib.parse` if you want zero dependencies and fastest-possible simple parsing.
 
 ## Exceptions and validation
 
@@ -580,7 +580,7 @@ Recommended handling patterns:
 Example:
 
 ```python
-from urlp import InvalidURLError, HostValidationError, parse_url
+from urlps import InvalidURLError, HostValidationError, parse_url
 
 try:
     u = parse_url(user_input)
@@ -593,7 +593,7 @@ except InvalidURLError:
 The package `__init__` exposes the most commonly useful exception classes so consumers can import them directly:
 
 ```python
-from urlp import InvalidURLError, HostValidationError
+from urlps import InvalidURLError, HostValidationError
 ```
 
 For library authors: prefer handling the specific exceptions when possible; fall back to `InvalidURLError` for a broad catch-all.

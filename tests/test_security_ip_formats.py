@@ -9,7 +9,7 @@ These tests cover detection of private/reserved IPs encoded in:
 """
 import pytest
 
-from urlp._security import (
+from urlps._security import (
     is_ssrf_risk,
     _is_decimal_ip_private,
     _is_octal_hex_ip_private,

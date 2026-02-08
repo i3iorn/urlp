@@ -14,7 +14,7 @@ Tests for:
 import pytest
 from unittest.mock import Mock, patch
 
-from urlp import (
+from urlps import (
     parse_url,
     parse_url_unsafe,
     InvalidURLError,
@@ -22,16 +22,16 @@ from urlp import (
     set_audit_callback,
     get_audit_callback,
 )
-from urlp._audit import get_callback_failure_metrics, reset_callback_failure_metrics
-from urlp.constants import PASSWORD_MASK
-from urlp._security import (
+from urlps._audit import get_callback_failure_metrics, reset_callback_failure_metrics
+from urlps.constants import PASSWORD_MASK
+from urlps._security import (
     is_open_redirect_risk,
     check_dns_rebinding,
     has_double_encoding,
     has_mixed_scripts,
     has_path_traversal,
 )
-from urlp._validation import Validator
+from urlps._validation import Validator
 
 
 class TestOpenRedirectDetection:

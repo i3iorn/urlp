@@ -1,5 +1,5 @@
 """
-Performance Report Generator for urllib.parse vs urlp comparison.
+Performance Report Generator for urllib.parse vs urlps comparison.
 
 Generates an HTML visualization of benchmark results.
 """
@@ -7,12 +7,12 @@ Generates an HTML visualization of benchmark results.
 import sys
 from pathlib import Path
 
-# Add parent directory to path so we can import urllib_vs_urlp
+# Add parent directory to path so we can import urllib_vs_urlps
 sys.path.insert(0, str(Path(__file__).parent))
 
 import json
 import time
-from urllib_vs_urlp import (
+from urllib_vs_urlps import (
     generate_simple_urls, generate_complex_urls, generate_edge_case_urls,
     parse_with_urllib, parse_with_urlp,
     access_components_urllib, access_components_urlp,
@@ -55,7 +55,7 @@ def run_all_benchmarks() -> dict:
             urllib_func(urls)
         urllib_time = time.perf_counter() - start
 
-        # Time urlp
+        # Time urlps
         start = time.perf_counter()
         for _ in range(5):
             urlp_func(urls)
@@ -95,7 +95,7 @@ def generate_html_report(results: list[dict]) -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>urllib.parse vs urlp Performance Comparison</title>
+    <title>urllib.parse vs urlps Performance Comparison</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {{
@@ -244,7 +244,7 @@ def generate_html_report(results: list[dict]) -> str:
 </head>
 <body>
     <div class="container">
-        <h1>Performance Comparison: urllib.parse vs urlp</h1>
+        <h1>Performance Comparison: urllib.parse vs urlps</h1>
         <p class="subtitle">Comprehensive benchmark analysis across multiple URL parsing scenarios</p>
         
         <div class="summary">
@@ -261,7 +261,7 @@ def generate_html_report(results: list[dict]) -> str:
                 <div class="value">{min(r['urllib_ms'] for r in results):.2f} ms</div>
             </div>
             <div class="summary-card">
-                <h3>Slowest urlp</h3>
+                <h3>Slowest urlps</h3>
                 <div class="value">{max(r['urlp_ms'] for r in results):.2f} ms</div>
             </div>
         </div>
@@ -272,7 +272,7 @@ def generate_html_report(results: list[dict]) -> str:
                 <canvas id="timeChart"></canvas>
             </div>
             <div class="chart-container">
-                <h2 style="margin-top: 0;">Performance Ratio (urlp / urllib)</h2>
+                <h2 style="margin-top: 0;">Performance Ratio (urlps / urllib)</h2>
                 <canvas id="ratioChart"></canvas>
             </div>
         </div>
@@ -284,8 +284,8 @@ def generate_html_report(results: list[dict]) -> str:
                     <tr>
                         <th>Test Scenario</th>
                         <th>urllib (ms)</th>
-                        <th>urlp (ms)</th>
-                        <th class="ratio-cell">Ratio (urlp/urllib)</th>
+                        <th>urlps (ms)</th>
+                        <th class="ratio-cell">Ratio (urlps/urllib)</th>
                         <th>% Faster</th>
                     </tr>
                 </thead>
@@ -294,7 +294,7 @@ def generate_html_report(results: list[dict]) -> str:
 
     for r in results:
         faster_pct = abs(r['urlp_ms'] - r['urllib_ms']) / min(r['urllib_ms'], r['urlp_ms']) * 100
-        faster_lib = "urllib" if r['urllib_ms'] < r['urlp_ms'] else "urlp"
+        faster_lib = "urllib" if r['urllib_ms'] < r['urlp_ms'] else "urlps"
 
         html += f"""                    <tr>
                         <td>{r['name']}</td>
@@ -331,7 +331,7 @@ def generate_html_report(results: list[dict]) -> str:
                         borderWidth: 1,
                     },
                     {
-                        label: 'urlp',
+                        label: 'urlps',
                         data: """ + chart_urlp + """,
                         backgroundColor: '#764ba2',
                         borderColor: '#764ba2',

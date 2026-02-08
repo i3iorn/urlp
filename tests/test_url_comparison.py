@@ -1,5 +1,5 @@
 """Tests for URL comparison operators and sorting."""
-from urlp import parse_url_unsafe
+from urlps import parse_url_unsafe
 
 
 class TestURLComparison:

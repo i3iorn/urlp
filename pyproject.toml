@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "urlp"
+name = "urlps"
 version = "0.2.1"
 description = "Lightweight URL parsing and building helpers (RFC 3986-like)."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 authors = [
-  { name = "urlp maintainers" },
+  { name = "urlps maintainers" },
 ]
 license = "MIT"
 license-files = ["LICENSE"]
@@ -38,15 +38,15 @@ idna = ["idna>=3.11"]
 dev = ["pytest>=7.4", "mypy>=1.19", "bandit>=1.9", "idna>=3.11"]
 
 [project.urls]
-Homepage = "https://github.com/micro/urlp"
-Repository = "https://github.com/micro/urlp"
-Documentation = "https://github.com/micro/urlp#readme"
-Changelog = "https://github.com/micro/urlp/blob/main/CHANGELOG.md"
-Issues = "https://github.com/micro/urlp/issues"
-"Bug Tracker" = "https://github.com/micro/urlp/issues"
+Homepage = "https://github.com/micro/urlps"
+Repository = "https://github.com/micro/urlps"
+Documentation = "https://github.com/micro/urlps#readme"
+Changelog = "https://github.com/micro/urlps/blob/main/CHANGELOG.md"
+Issues = "https://github.com/micro/urlps/issues"
+"Bug Tracker" = "https://github.com/micro/urlps/issues"
 
 [tool.setuptools.packages.find]
-include = ["urlp*"]
+include = ["urlps*"]
 exclude = ["tests*"]
 
 [tool.black]
@@ -102,7 +102,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["urlp"]
+source = ["urlps"]
 branch = true
 
 [tool.coverage.report]

@@ -1,4 +1,4 @@
-from urlp import parse_url, compose_url, URL
+from urlps import parse_url, compose_url, URL
 
 
 def test_parse_url_returns_URL() -> None:

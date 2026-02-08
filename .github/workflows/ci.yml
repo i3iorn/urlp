@@ -45,10 +45,10 @@ jobs:
         run: pytest -q
 
       - name: Run mypy
-        run: mypy urlp --ignore-missing-imports || true
+        run: mypy urlps --ignore-missing-imports || true
 
       - name: Run Bandit security scan
-        run: bandit -r urlp -lll || true
+        run: bandit -r urlps -lll || true
 
       - name: Dependency audit (pip-audit)
         run: pip-audit --progress spinner || true

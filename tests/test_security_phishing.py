@@ -3,9 +3,9 @@ import socket
 from unittest.mock import Mock, patch
 from urllib.error import URLError, HTTPError
 
-from urlp import _security
-from urlp.url import URL
-from urlp.exceptions import InvalidURLError
+from urlps import _security
+from urlps.url import URL
+from urlps.exceptions import InvalidURLError
 
 
 @pytest.fixture(autouse=True)

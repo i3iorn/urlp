@@ -1,8 +1,8 @@
 import pytest
 
-from urlp._validation import Validator
-from urlp._parser import Parser
-from urlp import URL
+from urlps._validation import Validator
+from urlps._parser import Parser
+from urlps import URL
 
 
 def test_idna_unicode_roundtrip_host():

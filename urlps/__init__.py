@@ -1,7 +1,7 @@
-"""urlp - Lightweight, secure, and RFC-compliant URL parsing and building.
+"""urlps - Lightweight, secure, and RFC-compliant URL parsing and building.
 
 Quick start:
-    >>> from urlp import parse_url, build
+    >>> from urlps import parse_url, build
     >>> url = parse_url("https://example.com/path?query=value")
     >>> url.host
     'example.com'
@@ -22,9 +22,9 @@ import importlib
 
 __version__ = "0.3.5"
 
-from urlp._audit import set_audit_callback, get_audit_callback
-from urlp.exceptions import URLpError, InvalidURLError, URLParseError, URLBuildError
-from urlp.url import URL
+from urlps._audit import set_audit_callback, get_audit_callback
+from urlps.exceptions import URLpError, InvalidURLError, URLParseError, URLBuildError
+from urlps.url import URL
 
 
 # =============================================================================
@@ -50,7 +50,7 @@ def parse_url(
     For parsing URLs without security checks (e.g., internal/development URLs),
     use `parse_url_unsafe()` instead.
     """
-    # Lazy imports to avoid heavy module load at simple `import urlp` time.
+    # Lazy imports to avoid heavy module load at simple `import urlps` time.
     from . import _security as _security
     from . import _parser as _parser
     from . import url as _url

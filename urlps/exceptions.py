@@ -1,5 +1,5 @@
 """
-Exception hierarchy for urlp: all errors raised by urlp are subclasses of URLpError.
+Exception hierarchy for urlps: all errors raised by urlps are subclasses of URLpError.
 
 Each exception provides a message, the value that caused the error (if applicable),
 and the URL component involved (if applicable). This enables precise error handling
