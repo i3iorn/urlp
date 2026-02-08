@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Optional
 import importlib
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 
 from urlps._audit import set_audit_callback, get_audit_callback
 from urlps.exceptions import URLpError, InvalidURLError, URLParseError, URLBuildError

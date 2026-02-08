@@ -45,6 +45,10 @@ print(new_url)  # https://other.com:8080/path
 - Path traversal patterns (`../`)
 - Double-encoded characters
 - Mixed Unicode scripts (homograph attacks)
+- URL parser confusion attacks
+- Query parameter injection
+- Dangerous ports (commonly exploited)
+- Non-canonical URL forms (filter bypass prevention)
 
 Use `parse_url_unsafe()` for internal/development URLs:
 ```python
@@ -81,7 +85,7 @@ try:
 except InvalidURLError as e:
     print(f"Rejected: {e}")
 
-# DNS rebinding detection (optional)
+# DNS rebinding detection (optional - rate-limited to prevent DoS)
 url = parse_url("https://api.example.com/", check_dns=True)
 
 # URL canonicalization
@@ -193,9 +197,13 @@ previous = clear_all_caches()
 | Basic URL parsing | ✓ | ✓ |
 | RFC 3986 strict compliance | Partial | ✓ |
 | SSRF protection | ✗ | ✓ |
-| DNS rebinding detection | ✗ | ✓ |
+| DNS rebinding detection | ✗ | ✓ (with rate limiting) |
 | Path traversal detection | ✗ | ✓ |
 | Homograph detection | ✗ | ✓ |
+| URL parser confusion protection | ✗ | ✓ |
+| Query parameter injection detection | ✗ | ✓ |
+| Dangerous port validation | ✗ | ✓ |
+| Canonical form validation | ✗ | ✓ |
 | Immutable URL objects | ✗ | ✓ |
 | URL canonicalization | ✗ | ✓ |
 | Password masking | ✗ | ✓ |

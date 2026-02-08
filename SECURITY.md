@@ -21,15 +21,23 @@ urlps is designed with security as a priority and includes comprehensive protect
 ### Built-in Protections (enabled by default with `parse_url()`)
 
 1. **SSRF Protection**: Blocks private IPs, localhost, loopback addresses, link-local addresses, `.local` and `.internal` domains
-2. **Path Traversal Detection**: Prevents `../` attacks
+2. **Path Traversal Detection**: Prevents `../` attacks and path normalization attacks
 3. **Double-Encoding Detection**: Identifies malicious double-encoded characters
-4. **Homograph Attack Prevention**: Detects mixed Unicode scripts
+4. **Homograph Attack Prevention**: Detects mixed Unicode scripts with enhanced Punycode/IDN validation
 5. **Open Redirect Detection**: Validates URL structures to prevent redirects
 6. **Component Length Limits**: Conservative limits prevent DoS attacks
+7. **URL Parser Confusion Detection**: Enhanced security validations to prevent parser inconsistencies
+8. **Query Parameter Injection Detection**: Identifies malicious query parameter patterns
+9. **Credential Leakage Detection**: Warns about credentials in URLs
+10. **Dangerous Port Validation**: Blocks connections to commonly exploited ports
+11. **Unicode Normalization**: Prevents Unicode-based security bypasses
+12. **IPv6 Zone Identifier Validation**: Validates IPv6 zone identifiers for security
+13. **Canonical Form Validation**: Prevents security filter bypasses and cache poisoning via non-canonical URLs
 
 ### Optional Security Checks
 
-- **DNS Rebinding Detection**: Enable with `check_dns=True` to verify hostnames don't resolve to private IPs
+- **DNS Rebinding Detection**: Enable with `check_dns=True` to verify hostnames don't resolve to private IPs (rate-limited to prevent DoS)
+- **DNS Rate Limiting**: Automatic protection against DoS attacks via DNS lookup flooding (10 lookups/second globally, 3 per host per 60 seconds)
 - **Phishing Domain Checking**: Enable with `check_phishing=True` to check against known phishing domains
 - **Audit Logging**: Use `set_audit_callback()` for security monitoring
 
@@ -72,6 +80,12 @@ safe_string = url.as_string(mask_password=True)  # https://user:***@example.com/
 # URL canonicalization for consistent comparisons
 url = parse_url("HTTP://EXAMPLE.COM:80/path")
 canonical = url.canonicalize()  # Normalized for security checks
+
+# Canonical form validation (prevents filter bypass)
+from urlps._security import is_non_canonical_url, get_canonical_url
+if is_non_canonical_url("HTTP://EXAMPLE.COM:80/./path"):
+    canonical = get_canonical_url("HTTP://EXAMPLE.COM:80/./path")
+    # Returns: "http://example.com/path"
 ```
 
 ## Security Considerations
@@ -113,14 +127,15 @@ Override component length limits via environment variables (e.g., `URLPS_MAX_URL
 
 ## Supported Versions
 
-| Version | Supported | Notes |
-| --- | --- | --- |
-| 0.3.x | ✅ Yes | Current - Full security features |
-| 0.2.x | ⚠️ Limited | Security features added; upgrade recommended |
-| 0.1.x | ❌ No | Legacy - No security protections |
-| 0.0.x | ❌ No | Legacy |
+| Version | Supported  | Notes |
+| --- |------------| --- |
+| 0.4.x | ✅ Yes      | Latest - Enhanced security validations, DNS rate limiting, canonical form validation |
+| 0.3.x | ⚠️ Limited | Previous stable - Full security features, upgrade recommended |
+| 0.2.x | ❌ No       | Security features added; upgrade required |
+| 0.1.x | ❌ No       | Legacy - No security protections |
+| 0.0.x | ❌ No       | Legacy |
 
-**Recommendation:** Always use the latest 0.3.x version for complete security protection.
+**Recommendation:** Always use the latest 0.4.x version for complete security protection.
 
 ## Security Audit
 
