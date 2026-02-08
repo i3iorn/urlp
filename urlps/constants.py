@@ -30,7 +30,12 @@ DEFAULT_PORTS: Dict[str, int] = {
 SCHEMES_NO_PORT: Set[str] = {OfficialSchemes.FILE.value}
 
 OFFICIAL_SCHEMES: FrozenSet[str] = frozenset(s.value for s in OfficialSchemes)
-UNSAFE_SCHEMES: FrozenSet[str] = frozenset({"javascript", "data", "vbscript"})
+UNSAFE_SCHEMES: FrozenSet[str] = frozenset({
+    "javascript", "data", "vbscript",  # Script execution
+    "jar", "file",  # Local file access
+    "gopher", "dict", "tftp",  # Protocol exploitation
+    "ldap", "ldaps",  # Information disclosure
+})
 
 STANDARD_PORTS: FrozenSet[int] = frozenset([80, 443, 21, 22, 25, 110, 143, 53])
 
