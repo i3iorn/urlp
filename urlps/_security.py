@@ -303,6 +303,40 @@ def is_open_redirect_risk(path: str) -> bool:
     return '\\' in path or path.startswith('//')
 
 
+def has_parser_confusion(url: str) -> bool:
+    """Detect ambiguous URLs that could be parsed differently by different parsers.
+
+    Detects:
+    - Multiple @ signs in authority (not counting @ within password)
+    - Backslash in authority section
+    - Mixed separators (forward slash + backslash)
+    - Special characters before @ that might confuse parsers
+    """
+    if not isinstance(url, str):
+        return False
+
+    if '://' not in url:
+        return False
+
+    after_scheme = url.split('://', 1)[1]
+
+    if '\\' in after_scheme:
+        return True
+
+    if '@' not in after_scheme:
+        return False
+
+    before_at_last = after_scheme.rsplit('@', 1)[0]
+
+    if any(char in before_at_last for char in ['/', '#', '?']):
+        return True
+
+    if '@' in before_at_last:
+        return True
+
+    return False
+
+
 def extract_host_and_path(url: str) -> Tuple[str, str]:
     """Extract host and path portions from URL for security checks."""
     if '://' not in url:
@@ -339,6 +373,8 @@ def validate_url_security(url: str) -> None:
 
     if has_double_encoding(url):
         raise InvalidURLError("URL contains double-encoded characters.")
+    if has_parser_confusion(url):
+        raise InvalidURLError("URL contains ambiguous syntax that could cause parser confusion.")
     if '://' not in url:
         return
     host, path = extract_host_and_path(url)
@@ -373,6 +409,7 @@ def clear_caches() -> dict:
 __all__ = [
     "is_ssrf_risk", "is_private_ip", "check_dns_rebinding", "has_mixed_scripts",
     "has_double_encoding", "has_path_traversal", "is_open_redirect_risk",
-    "extract_host_and_path", "validate_url_security", "get_cache_info", "clear_caches",
+    "has_parser_confusion", "extract_host_and_path", "validate_url_security",
+    "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
 ]
