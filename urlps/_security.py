@@ -368,6 +368,147 @@ def has_parser_confusion(url: str) -> bool:
     return False
 
 
+def has_suspicious_punycode(host: str) -> bool:
+    """Detect suspicious Punycode/IDN domains with confusable characters.
+
+    Internationalized Domain Names (IDN) using Punycode encoding can be abused
+    for phishing attacks via homograph attacks. This function detects:
+
+    1. Mixed scripts in decoded IDN (e.g., Latin + Cyrillic)
+    2. Confusable character combinations (e.g., 'rn' looks like 'm')
+    3. Suspicious TLDs commonly used in phishing
+    4. All-numeric domain names in non-ASCII
+    5. Excessive use of dashes/hyphens (common in phishing)
+
+    Args:
+        host: The hostname to check (may be punycode-encoded or decoded)
+
+    Returns:
+        True if suspicious patterns are detected, False otherwise
+
+    Examples:
+        >>> has_suspicious_punycode("xn--pple-43d.com")  # аpple (Cyrillic 'а')
+        True
+        >>> has_suspicious_punycode("example.com")
+        False
+        >>> has_suspicious_punycode("раура1.com")  # paypal with Cyrillic
+        True
+    """
+    if not isinstance(host, str) or not host:
+        return False
+
+    host_lower = host.lower()
+
+    # Check if it's a punycode domain
+    is_punycode = 'xn--' in host_lower
+
+    # Decode punycode if present
+    decoded_host = host_lower
+    if is_punycode:
+        try:
+            # Decode each label separately
+            labels = host_lower.split('.')
+            decoded_labels = []
+            for label in labels:
+                if label.startswith('xn--'):
+                    try:
+                        decoded = label.encode('ascii').decode('idna')
+                        decoded_labels.append(decoded)
+                    except (UnicodeError, UnicodeDecodeError):
+                        decoded_labels.append(label)
+                else:
+                    decoded_labels.append(label)
+            decoded_host = '.'.join(decoded_labels)
+        except (UnicodeError, UnicodeDecodeError, ValueError):
+            # If decoding fails, it might be malformed
+            return True
+
+    # Check for mixed scripts (already implemented, but check decoded version)
+    if has_mixed_scripts(decoded_host):
+        return True
+
+    # Extract TLD
+    parts = decoded_host.split('.')
+    if len(parts) < 2:
+        return False
+
+    tld = parts[-1]
+    domain = parts[-2] if len(parts) >= 2 else ''
+
+    # Suspicious TLDs commonly used in phishing
+    # These are legitimate TLDs but frequently abused
+    suspicious_tlds = {
+        'tk', 'ml', 'ga', 'cf', 'gq',  # Free domains
+        'pw', 'top', 'work', 'click', 'link',  # Cheap domains
+        'xyz', 'loan', 'win', 'bid', 'racing',
+        'download', 'stream', 'science', 'accountant',
+    }
+
+    # If it's punycode with a suspicious TLD, flag it
+    if is_punycode and tld in suspicious_tlds:
+        return True
+
+    # Check for confusable character combinations
+    # These are character pairs that look very similar
+    confusable_pairs = [
+        ('rn', 'm'),  # rn looks like m
+        ('vv', 'w'),  # vv looks like w
+        ('cl', 'd'),  # cl looks like d in some fonts
+        ('l1', 'l1'),  # l and 1 look similar
+        ('0o', '0o'),  # 0 and o look similar
+    ]
+
+    # Check domain name (not TLD) for confusables
+    for pair in confusable_pairs:
+        if pair[0] in domain:
+            # Check if it might be intentionally confusing
+            # e.g., "paypa1" (using 1 instead of l)
+            return True
+
+    # Check for excessive hyphens (common in phishing)
+    # Legitimate domains rarely have more than 2 hyphens
+    if domain.count('-') > 2:
+        return True
+
+    # Check for suspicious patterns: mixing ASCII digits with non-ASCII letters
+    has_digits = any(c.isdigit() for c in domain)
+    has_non_ascii = False
+    try:
+        domain.encode('ascii')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        has_non_ascii = True
+
+    if has_digits and has_non_ascii:
+        # Common phishing pattern: раура1.com (mixing Cyrillic with digits)
+        return True
+
+    # Check for all-numeric domain in non-ASCII
+    # This is highly suspicious
+    if has_non_ascii:
+        # Remove common punctuation
+        domain_no_punct = domain.replace('-', '').replace('_', '')
+        if domain_no_punct and all(c.isdigit() for c in domain_no_punct if c.isalnum()):
+            return True
+
+    # Check for known brand impersonation patterns
+    # Common brands that are frequently targeted
+    common_brands = [
+        'paypal', 'google', 'amazon', 'apple', 'microsoft',
+        'facebook', 'twitter', 'instagram', 'netflix', 'ebay',
+        'bank', 'secure', 'login', 'account', 'verify',
+    ]
+
+    # If domain contains a brand name and non-ASCII, it's suspicious
+    if has_non_ascii:
+        for brand in common_brands:
+            # Check if brand appears with possible character substitution
+            # This is a simplified check
+            if brand in decoded_host.lower():
+                return True
+
+    return False
+
+
 def has_query_injection(query_string: str) -> bool:
     """Detect potential XSS/injection patterns in query strings.
 
@@ -643,5 +784,5 @@ __all__ = [
     "is_dangerous_port", "extract_host_and_path", "validate_url_security",
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
-    "has_credentials", "has_query_injection",
+    "has_credentials", "has_query_injection", "has_suspicious_punycode",
 ]
