@@ -437,7 +437,7 @@ class TestNormalizationRFC3986:
 
     def test_empty_authority_handling(self):
         """Empty authority handling (file:// scheme)"""
-        url = parse_url("file:///path/to/file")
+        url = parse_url("file:///path/to/file", allow_custom_scheme=True)
         assert url.path == "/path/to/file"
         # file: may have empty authority
         assert url.host is None or url.host == ""

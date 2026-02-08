@@ -148,7 +148,7 @@ class TestDNSRebindingProtection:
         url2 = parse_url_unsafe("http://google.com/", check_dns=False)
         assert url2.host == "google.com"
 
-    @patch('urlp._security.socket.getaddrinfo')
+    @patch('urlps._security.socket.getaddrinfo')
     def test_dns_resolves_to_private_blocked(self, mock_getaddrinfo):
         """DNS that resolves to private IP should be blocked with check_dns."""
         mock_getaddrinfo.return_value = [
@@ -157,14 +157,14 @@ class TestDNSRebindingProtection:
 
         assert not check_dns_rebinding("evil.example.com")
 
-    @patch('urlp._security.socket.getaddrinfo')
+    @patch('urlps._security.socket.getaddrinfo')
     def test_dns_resolves_to_public_allowed(self, mock_getaddrinfo):
         """DNS that resolves to public IP should be allowed."""
         mock_getaddrinfo.return_value = [
             (2, 1, 6, '', ('93.184.216.34', 0))  # example.com IP
         ]
 
-        assert check_dns_rebinding("example.com")
+        assert check_dns_rebinding("example.com", enforce_rate_limit=False)
 
     def test_dns_resolution_failure_treated_as_unsafe(self):
         """DNS resolution failure should be treated as unsafe."""

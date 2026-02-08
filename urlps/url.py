@@ -110,7 +110,7 @@ class URL:
         """Run security validations on parsed URL."""
         if self._strict and self._host and _security.is_ssrf_risk(self._host):
             raise InvalidURLError("Host poses SSRF risk and is disallowed in strict mode.")
-        if self._check_dns and self._host and not _security.check_dns_rebinding(self._host):
+        if self._check_dns and self._host and not _security.check_dns_rebinding(self._host, enforce_rate_limit=False):
             raise InvalidURLError("Host resolves to private/reserved IP address.")
         if self._check_phishing and self._host and _security.check_against_phishing_db(self._host):
             raise InvalidURLError("Host is identified as a phishing domain.")

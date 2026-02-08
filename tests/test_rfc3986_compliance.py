@@ -33,7 +33,7 @@ class TestRFC3986Examples:
     def test_ldap_example(self):
         """RFC 3986 example with query"""
         # Use parse_url_unsafe for RFC compliance tests with non-public IPs
-        url = parse_url_unsafe("ldap://[2001:db8::7]/c=GB?objectClass?one")
+        url = parse_url_unsafe("ldap://[2001:db8::7]/c=GB?objectClass?one", allow_custom_scheme=True)
         assert url.scheme == "ldap"
         assert url.host == "[2001:db8::7]"
         assert url.path == "/c=GB"
@@ -282,7 +282,7 @@ class TestSchemeSpecific:
 
     def test_file_scheme_with_host(self):
         """File scheme with localhost"""
-        url = parse_url("file:///path/to/file")
+        url = parse_url("file:///path/to/file", allow_custom_scheme=True)
         assert url.scheme == "file"
         assert url.path == "/path/to/file"
 

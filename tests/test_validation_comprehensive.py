@@ -309,7 +309,7 @@ class TestSecurityConsiderations:
 
     def test_file_protocol_localhost(self):
         """File URLs should work with localhost"""
-        url = parse_url("file:///etc/passwd")
+        url = parse_url("file:///etc/passwd", allow_custom_scheme=True)
         assert url.scheme == "file"
         assert url.path == "/etc/passwd"
 

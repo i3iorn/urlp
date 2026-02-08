@@ -356,32 +356,71 @@ def is_malicious_ipv6_zone_id(host: str) -> bool:
 def has_parser_confusion(url: str) -> bool:
     """Detect ambiguous URLs that could be parsed differently by different parsers.
 
-    Detects:
-    - Multiple @ signs in authority (not counting @ within password)
-    - Backslash in authority section
-    - Mixed separators (forward slash + backslash)
-    - Special characters before @ that might confuse parsers
+    Heuristics (conservative):
+    - If a backslash appears in the authority portion -> ambiguous (some parsers treat backslash as '/')
+    - If both backslash and forward slash appear after scheme -> mixed separators, ambiguous
+    - If the authority contains more than one raw '@' -> ambiguous (userinfo parsing confusion)
+    - If characters that terminate authority ("/", "?", "#") appear before the last '@' in the authority
+      that indicates the parser might treat the "@" as part of the path rather than userinfo, or vice versa.
+
+    Notes:
+    - This function only inspects the authority substring (between '://' and the first '/', '?', or '#').
+    - Percent-encoded '@' (i.e., '%40') is not treated as an '@' here (we only check raw characters).
+    - The goal is to conservatively flag inputs that are likely to be parsed differently; false positives
+      are acceptable, but we try to avoid flagging perfectly well-formed, unambiguous URLs.
     """
     if not isinstance(url, str):
         return False
-
     if '://' not in url:
         return False
 
+    # Work on the substring after the scheme
     after_scheme = url.split('://', 1)[1]
 
-    if '\\' in after_scheme:
+    # Mixed separators anywhere after scheme (e.g., "\\" + "/") is suspicious
+    if '/' in after_scheme and '\\' in after_scheme:
         return True
 
-    if '@' not in after_scheme:
+    # If there is "/" before "." in after_scheme, it may indicate mixed separators in authority
+    slash_pos = after_scheme.find('/')
+    dot_pos = after_scheme.find('.')
+    if slash_pos != -1 and dot_pos != -1 and slash_pos < dot_pos:
+        return True
+
+    # Extract authority: substring before first '/', '?', or '#'
+    end = len(after_scheme)
+    for ch in ('/', '?', '#'):
+        idx = after_scheme.find(ch)
+        if idx != -1:
+            end = min(end, idx)
+    authority = after_scheme[:end]
+    rest = after_scheme[end:]
+
+    # if the rest contains a # before any /, it may indicate confusion about authority vs path
+    if '#' in rest and (rest.find('/') == -1 or rest.find('#') < rest.find('/')):
+        return True
+    if '?' in rest and (rest.find('/') == -1 or rest.find('?') < rest.find('/')):
+        return True
+
+    if not authority:
         return False
 
-    before_at_last = after_scheme.rsplit('@', 1)[0]
-
-    if any(char in before_at_last for char in ['/', '#', '?']):
+    # Backslash in authority is a common source of parser confusion
+    if '\\' in authority:
         return True
 
-    if '@' in before_at_last:
+    # Count raw @ characters in authority (ignore percent-encoded %40)
+    at_count = authority.count('@')
+    if at_count > 1:
+        return True
+    if at_count == 0:
+        return False
+
+    # There is exactly one '@' in authority. If characters that normally end authority
+    # appear before the last '@', parsers may disagree about whether the '@' belongs
+    # to the authority/userinfo or to the path/other component.
+    before_last, _ = authority.rsplit('@', 1)
+    if any(c in before_last for c in ('/', '?', '#')):
         return True
 
     return False
@@ -1313,8 +1352,6 @@ def validate_url_security(url: str) -> None:
 
     if has_double_encoding(url):
         raise InvalidURLError("URL contains double-encoded characters.")
-    if has_parser_confusion(url):
-        raise InvalidURLError("URL contains ambiguous syntax that could cause parser confusion.")
     if '://' not in url:
         return
     host, path = extract_host_and_path(url)
@@ -1327,6 +1364,8 @@ def validate_url_security(url: str) -> None:
             raise InvalidURLError("URL path contains path traversal patterns.")
         if is_open_redirect_risk(path):
             raise InvalidURLError("URL path contains open redirect risk patterns.")
+    if has_parser_confusion(url):
+        raise InvalidURLError("URL contains ambiguous syntax that could cause parser confusion.")
 
 
 _CACHED_FUNCTIONS = [is_private_ip, is_ssrf_risk, has_mixed_scripts]
