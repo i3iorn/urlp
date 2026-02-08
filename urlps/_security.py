@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import unicodedata
 from functools import lru_cache
 from typing import Optional, Set, Tuple, Union
 from urllib import request
@@ -388,12 +389,28 @@ def extract_host_and_path(url: str) -> Tuple[str, str]:
     return host_portion, path_portion
 
 
+def normalize_url_unicode(url: str) -> str:
+    """Normalize URL to NFC form to prevent normalization-based bypasses.
+
+    This prevents "validate-then-normalize" vulnerabilities where attackers
+    use Unicode tricks to bypass filters.
+    """
+    if not isinstance(url, str):
+        return url
+    try:
+        return unicodedata.normalize('NFC', url)
+    except (ValueError, TypeError):
+        return url
+
+
 def validate_url_security(url: str) -> None:
     """Run comprehensive security validations. Raises InvalidURLError if issue detected.
 
     Performance: Fast-path for pure ASCII URLs skips expensive Unicode checks.
     """
     from .exceptions import InvalidURLError
+
+    url = normalize_url_unicode(url)
 
     is_ascii = True
     try:
@@ -441,7 +458,7 @@ def clear_caches() -> dict:
 __all__ = [
     "is_ssrf_risk", "is_private_ip", "check_dns_rebinding", "has_mixed_scripts",
     "has_double_encoding", "has_path_traversal", "is_open_redirect_risk",
-    "has_parser_confusion", "is_malicious_ipv6_zone_id",
+    "has_parser_confusion", "is_malicious_ipv6_zone_id", "normalize_url_unicode",
     "extract_host_and_path", "validate_url_security",
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
