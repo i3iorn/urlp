@@ -10,7 +10,7 @@ from urllib import request
 from urllib.error import URLError
 from urllib.parse import unquote
 
-from .constants import BLOCKED_HOSTNAMES, DEFAULT_DNS_TIMEOUT
+from .constants import BLOCKED_HOSTNAMES, DEFAULT_DNS_TIMEOUT, DANGEROUS_PORTS
 from ._patterns import PATTERNS
 
 
@@ -389,6 +389,21 @@ def extract_host_and_path(url: str) -> Tuple[str, str]:
     return host_portion, path_portion
 
 
+def is_dangerous_port(port: Optional[int], block_dangerous_ports: bool = False) -> bool:
+    """Check if port is commonly exploited.
+
+    Args:
+        port: Port number to check
+        block_dangerous_ports: If True, block ports in DANGEROUS_PORTS set
+
+    Returns:
+        True if port should be blocked, False otherwise
+    """
+    if not block_dangerous_ports or port is None:
+        return False
+    return port in DANGEROUS_PORTS
+
+
 def normalize_url_unicode(url: str) -> str:
     """Normalize URL to NFC form to prevent normalization-based bypasses.
 
@@ -459,7 +474,7 @@ __all__ = [
     "is_ssrf_risk", "is_private_ip", "check_dns_rebinding", "has_mixed_scripts",
     "has_double_encoding", "has_path_traversal", "is_open_redirect_risk",
     "has_parser_confusion", "is_malicious_ipv6_zone_id", "normalize_url_unicode",
-    "extract_host_and_path", "validate_url_security",
+    "is_dangerous_port", "extract_host_and_path", "validate_url_security",
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
 ]

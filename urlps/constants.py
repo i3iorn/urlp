@@ -39,6 +39,21 @@ UNSAFE_SCHEMES: FrozenSet[str] = frozenset({
 
 STANDARD_PORTS: FrozenSet[int] = frozenset([80, 443, 21, 22, 25, 110, 143, 53])
 
+DANGEROUS_PORTS: FrozenSet[int] = frozenset({
+    22,    # SSH
+    23,    # Telnet
+    25,    # SMTP
+    110,   # POP3
+    143,   # IMAP
+    445,   # SMB
+    3306,  # MySQL
+    5432,  # PostgreSQL
+    6379,  # Redis
+    9200,  # Elasticsearch
+    27017, # MongoDB
+    11211, # Memcached
+})
+
 # Component length limits for security (tuned for 99.99% of URLs)
 # These are intentionally conservative to reduce attack surface while
 # still accommodating real-world usage (tracking, long query strings, etc.).
@@ -122,6 +137,7 @@ __all__ = [
     "DEFAULT_PORTS",
     "SCHEMES_NO_PORT",
     "OFFICIAL_SCHEMES",
+    "DANGEROUS_PORTS",
     "UNSAFE_SCHEMES",
     "STANDARD_PORTS",
     "MAX_URL_LENGTH",
