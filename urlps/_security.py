@@ -608,6 +608,337 @@ def check_dns_rate_limit(host: str) -> bool:
     return limiter.is_allowed(host)
 
 
+def is_non_canonical_url(url: str) -> bool:
+    """Detect URLs that are not in canonical form.
+
+    Non-canonical URLs can be used to bypass security filters, cache systems,
+    and access control mechanisms. Canonical form ensures consistent URL
+    representation and prevents evasion techniques.
+
+    Detects:
+    1. Unnecessary percent-encoding (e.g., %41 for 'A')
+    2. Case variations in scheme/host (e.g., HTTP vs http)
+    3. Unnecessary port numbers (e.g., http://example.com:80)
+    4. Non-normalized paths (e.g., /./path, /path/../other)
+    5. Trailing dots in hostnames (e.g., example.com.)
+    6. Mixed case in percent-encoding (e.g., %2f vs %2F)
+    7. IPv6 address not in canonical form
+
+    Args:
+        url: The URL string to check
+
+    Returns:
+        True if URL is not in canonical form, False if canonical
+
+    Examples:
+        >>> is_non_canonical_url("HTTP://EXAMPLE.COM")  # Uppercase scheme/host
+        True
+        >>> is_non_canonical_url("http://example.com:80")  # Default port
+        True
+        >>> is_non_canonical_url("http://example.com/path/..")  # Non-normalized path
+        True
+        >>> is_non_canonical_url("http://example.com")  # Canonical
+        False
+    """
+    if not isinstance(url, str) or not url:
+        return False
+
+    # Must have a scheme to be a full URL
+    if '://' not in url:
+        return False
+
+    try:
+        from urllib.parse import urlparse, unquote
+
+        # Extract scheme manually before parsing (urlparse lowercases it)
+        scheme_end = url.find('://')
+        if scheme_end > 0:
+            raw_scheme = url[:scheme_end]
+            if raw_scheme != raw_scheme.lower():
+                return True
+
+        # Parse the URL
+        parsed = urlparse(url)
+
+        # Extract hostname manually to check case (urlparse lowercases it)
+        # Get netloc portion
+        if '://' in url:
+            after_scheme = url.split('://', 1)[1]
+            # Split on first / ? or #
+            netloc_end = len(after_scheme)
+            for char in ['/', '?', '#']:
+                pos = after_scheme.find(char)
+                if pos != -1:
+                    netloc_end = min(netloc_end, pos)
+            raw_netloc = after_scheme[:netloc_end]
+
+            # Extract host from netloc (remove userinfo and port)
+            raw_host = raw_netloc
+            if '@' in raw_host:
+                raw_host = raw_host.split('@', 1)[1]
+            if ':' in raw_host and not raw_host.startswith('['):
+                raw_host = raw_host.split(':', 1)[0]
+            elif raw_host.startswith('[') and ']:' in raw_host:
+                raw_host = raw_host.split(']:')[0] + ']'
+
+            # Check host case
+            if raw_host and raw_host != raw_host.lower():
+                return True
+
+        # Check for trailing dot in hostname
+        netloc = parsed.netloc
+        if netloc:
+            # Extract host portion (before port)
+            host_part = netloc.split(':')[0] if ':' in netloc else netloc
+            # Remove userinfo if present
+            if '@' in host_part:
+                host_part = host_part.split('@', 1)[1]
+            # Check for trailing dot (except for root zone which is ok)
+            if host_part.endswith('.') and host_part != '.':
+                return True
+
+        # Check for unnecessary default ports
+        if parsed.port:
+            scheme = parsed.scheme.lower()
+            default_ports = {
+                'http': 80,
+                'https': 443,
+                'ftp': 21,
+                'ws': 80,
+                'wss': 443,
+            }
+            if scheme in default_ports and parsed.port == default_ports[scheme]:
+                return True
+
+        # Check path normalization
+        path = parsed.path
+        if path:
+            # Check for dot segments
+            if '/./' in path or path.startswith('./'):
+                return True
+            if '/../' in path or path.startswith('../'):
+                return True
+            if path.endswith('/.') or path.endswith('/..'):
+                return True
+
+            # Check for unnecessary percent-encoding of unreserved characters
+            # Unreserved chars: A-Z a-z 0-9 - . _ ~
+            # These should never be percent-encoded
+            import re
+            unnecessary_encoded = re.findall(r'%([0-9A-Fa-f]{2})', path)
+            for hex_val in unnecessary_encoded:
+                char_code = int(hex_val, 16)
+                # Check if it's an unreserved character
+                char = chr(char_code)
+                if char.isalnum() or char in '-._~':
+                    return True
+
+            # Check for mixed case in percent-encoding
+            # All percent-encoded should be uppercase
+            encoded_parts = re.findall(r'%[0-9A-Fa-f]{2}', path)
+            for part in encoded_parts:
+                if part != part.upper():
+                    return True
+
+        # Check query string
+        query = parsed.query
+        if query:
+            # Check for mixed case in percent-encoding
+            import re
+            encoded_parts = re.findall(r'%[0-9A-Fa-f]{2}', query)
+            for part in encoded_parts:
+                if part != part.upper():
+                    return True
+
+        # Check for IPv6 non-canonical form (use raw_host to avoid parsing issues)
+        if '://' in url:
+            # Use the raw_host we extracted earlier
+            if raw_host and raw_host.startswith('[') and ']' in raw_host:
+                try:
+                    import ipaddress
+                    bracket_end = raw_host.index(']')
+                    ipv6_str = raw_host[1:bracket_end]
+                    # Remove zone ID if present
+                    if '%' in ipv6_str:
+                        ipv6_str = ipv6_str.split('%')[0]
+                    # Parse and get canonical form
+                    ipv6_obj = ipaddress.IPv6Address(ipv6_str)
+                    canonical = str(ipv6_obj)
+                    # Check if original matches canonical
+                    if ipv6_str.lower() != canonical.lower():
+                        return True
+                except (ValueError, ipaddress.AddressValueError, NameError):
+                    # Invalid IPv6 or raw_host not defined, that's a different validation issue
+                    pass
+
+        # Check fragment
+        fragment = parsed.fragment
+        if fragment:
+            # Check for mixed case in percent-encoding
+            import re
+            encoded_parts = re.findall(r'%[0-9A-Fa-f]{2}', fragment)
+            for part in encoded_parts:
+                if part != part.upper():
+                    return True
+
+    except (ValueError, AttributeError):
+        # If parsing fails, we can't determine canonicality
+        return False
+
+    return False
+
+
+def get_canonical_url(url: str) -> Optional[str]:
+    """Convert URL to canonical form.
+
+    Produces a canonical representation of the URL by:
+    - Lowercasing scheme and host
+    - Removing default ports
+    - Normalizing path (removing . and .. segments)
+    - Removing trailing dots from hostname
+    - Uppercasing percent-encoding
+    - Converting IPv6 to canonical form
+
+    Args:
+        url: The URL to canonicalize
+
+    Returns:
+        Canonical URL string, or None if URL is invalid
+
+    Examples:
+        >>> get_canonical_url("HTTP://EXAMPLE.COM:80/path")
+        'http://example.com/path'
+        >>> get_canonical_url("http://example.com/a/../b")
+        'http://example.com/b'
+    """
+    if not isinstance(url, str) or not url:
+        return None
+
+    # Check if it looks like a URL (has a scheme)
+    if '://' not in url:
+        return None
+
+    try:
+        from urllib.parse import urlparse, urlunparse, unquote, quote
+        import re
+
+        parsed = urlparse(url)
+
+        # Canonicalize scheme (lowercase)
+        scheme = parsed.scheme.lower() if parsed.scheme else ""
+
+        # Canonicalize netloc
+        netloc = parsed.netloc
+        if netloc:
+            # Parse netloc components
+            userinfo = ""
+            port = parsed.port
+
+            # Extract userinfo if present
+            if '@' in netloc:
+                userinfo_part, netloc_without_userinfo = netloc.rsplit('@', 1)
+                userinfo = userinfo_part + '@'
+            else:
+                netloc_without_userinfo = netloc
+
+            # Extract host (handle IPv6 specially)
+            if netloc_without_userinfo.startswith('['):
+                # IPv6
+                if ']:' in netloc_without_userinfo:
+                    host = netloc_without_userinfo.split(']:')[0] + ']'
+                elif netloc_without_userinfo.endswith(']'):
+                    host = netloc_without_userinfo
+                else:
+                    # Malformed, use hostname
+                    host = f"[{parsed.hostname}]" if parsed.hostname else ""
+            else:
+                # Regular hostname or IPv4
+                host = parsed.hostname or ""
+                if ':' in netloc_without_userinfo and not netloc_without_userinfo.startswith('['):
+                    host = netloc_without_userinfo.split(':', 1)[0]
+
+            # Lowercase host
+            host = host.lower()
+
+            # Remove trailing dot
+            if host.endswith('.') and host != '.':
+                host = host[:-1]
+
+            # Canonicalize IPv6
+            if host.startswith('[') and host.endswith(']'):
+                try:
+                    import ipaddress
+                    ipv6_str = host[1:-1]
+                    zone_id = ""
+                    if '%' in ipv6_str:
+                        ipv6_str, zone_id = ipv6_str.split('%', 1)
+                        zone_id = '%' + zone_id
+                    ipv6_obj = ipaddress.IPv6Address(ipv6_str)
+                    host = f"[{ipv6_obj}{zone_id}]"
+                except (ValueError, ipaddress.AddressValueError):
+                    pass  # Keep original if invalid
+
+            # Remove default port
+            if port:
+                default_ports = {
+                    'http': 80, 'https': 443, 'ftp': 21,
+                    'ws': 80, 'wss': 443,
+                }
+                if scheme in default_ports and port == default_ports[scheme]:
+                    port = None
+
+            # Reconstruct netloc
+            if port:
+                netloc = f"{userinfo}{host}:{port}"
+            else:
+                netloc = f"{userinfo}{host}"
+
+        # Normalize path
+        path = parsed.path
+        if path:
+            # Normalize dot segments
+            from posixpath import normpath
+            path = normpath(path)
+
+            # Uppercase percent-encoding and remove unnecessary encoding
+            def replace_percent(match):
+                hex_val = match.group(1)
+                char_code = int(hex_val, 16)
+                char = chr(char_code)
+                # Don't decode unreserved characters - they should stay decoded
+                # Unreserved: A-Z a-z 0-9 - . _ ~
+                if char.isalnum() or char in '-._~':
+                    return char
+                # Keep percent-encoding but uppercase
+                return f"%{hex_val.upper()}"
+
+            path = re.sub(r'%([0-9A-Fa-f]{2})', replace_percent, path)
+
+        # Uppercase percent-encoding in query and fragment
+        query = parsed.query
+        if query:
+            query = re.sub(
+                r'%([0-9A-Fa-f]{2})',
+                lambda m: f"%{m.group(1).upper()}",
+                query
+            )
+
+        fragment = parsed.fragment
+        if fragment:
+            fragment = re.sub(
+                r'%([0-9A-Fa-f]{2})',
+                lambda m: f"%{m.group(1).upper()}",
+                fragment
+            )
+
+        # Reconstruct URL
+        canonical = urlunparse((scheme, netloc, path, parsed.params, query, fragment))
+        return canonical
+
+    except (ValueError, AttributeError):
+        return None
+
+
 def has_suspicious_punycode(host: str) -> bool:
     """Detect suspicious Punycode/IDN domains with confusable characters.
 
@@ -1026,4 +1357,5 @@ __all__ = [
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
     "has_credentials", "has_query_injection", "has_suspicious_punycode",
     "DNSRateLimiter", "get_dns_rate_limiter", "reset_dns_rate_limiter", "check_dns_rate_limit",
+    "is_non_canonical_url", "get_canonical_url",
 ]
