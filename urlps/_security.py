@@ -368,6 +368,124 @@ def has_parser_confusion(url: str) -> bool:
     return False
 
 
+def has_query_injection(query_string: str) -> bool:
+    """Detect potential XSS/injection patterns in query strings.
+
+    Query parameters are a common injection vector for various attacks:
+    - Cross-Site Scripting (XSS): <script>, onerror=, javascript:
+    - SQL Injection: UNION SELECT, OR 1=1, DROP TABLE
+    - Command Injection: |, &&, ;, $(...)
+    - LDAP Injection: *, )(, |
+    - XML Injection: <!, CDATA, DOCTYPE
+
+    This function detects common injection patterns but should NOT be used
+    as the sole defense. Always use proper input validation, output encoding,
+    and parameterized queries/prepared statements.
+
+    Args:
+        query_string: The query string portion of a URL (without leading ?)
+
+    Returns:
+        True if suspicious patterns are detected, False otherwise
+
+    Examples:
+        >>> has_query_injection("q=<script>alert(1)</script>")
+        True
+        >>> has_query_injection("name=John&age=25")
+        False
+        >>> has_query_injection("id=1' OR '1'='1")
+        True
+    """
+    if not isinstance(query_string, str) or not query_string:
+        return False
+
+    # Normalize to lowercase for pattern matching
+    query_lower = query_string.lower()
+
+    # Also check a version with spaces normalized for patterns that might use whitespace
+    # to evade detection (e.g., "UNION  SELECT" or "UNION%20SELECT")
+    query_normalized = query_lower.replace('%20', ' ').replace('%09', ' ').replace('%0a', ' ')
+    # Collapse multiple spaces
+    while '  ' in query_normalized:
+        query_normalized = query_normalized.replace('  ', ' ')
+
+    # XSS patterns
+    xss_patterns = [
+        '<script', '</script', 'javascript:', 'onerror=', 'onload=',
+        'onclick=', 'onmouseover=', '<iframe', '<object', '<embed',
+        'vbscript:', 'data:text/html', '<img', 'src=', '<body',
+        'onfocus=', 'onblur=', '<svg', 'onanimation', '<input',
+    ]
+
+    # SQL injection patterns
+    sql_patterns = [
+        'union select', 'union all select', "' or '", '" or "',
+        "' or 1=1", '" or 1=1', "' and '", '" and "', "' and 1=1", '" and 1=1',
+        'drop table', 'delete from', 'insert into', 'update set',
+        '--', '/*', '*/', 'exec(', 'execute(', 'xp_cmdshell', 'sp_executesql',
+        'sleep(', 'waitfor', 'benchmark(',
+    ]
+
+    # Command injection patterns
+    cmd_patterns = [
+        '$(', '`', '&&', '||', '; rm', ';rm ', ';cat ', '|cat', '|nc',
+        '/bin/', '/etc/passwd', '/etc/shadow', 'cmd.exe', 'powershell',
+    ]
+
+    # LDAP injection patterns
+    ldap_patterns = ['*)(', '(|', '(&', '(cn=*)']
+
+    # XML/XXE patterns
+    xml_patterns = ['<!entity', '<!doctype', '<![cdata[', '<?xml']
+
+    # Path traversal in query (additional check)
+    traversal_patterns = ['../', '..\\', '%2e%2e/', '%2e%2e\\', '%2e%2e%2f', '%2e%2e%5c']
+
+    # Check all patterns in both original and normalized versions
+    all_patterns = xss_patterns + sql_patterns + cmd_patterns + ldap_patterns + xml_patterns + traversal_patterns
+
+    for pattern in all_patterns:
+        if pattern in query_lower or pattern in query_normalized:
+            return True
+
+    # Check for encoded variations of dangerous characters
+    # These might bypass simple filters but indicate potential injection
+    encoded_patterns = [
+        '%3c',  # <
+        '%3e',  # >
+        '%27',  # '
+        '%22',  # "
+        '%3b',  # ;
+        '%7c',  # |
+        '%26%26',  # &&
+        '%7c%7c',  # ||
+    ]
+
+    for pattern in encoded_patterns:
+        if pattern in query_lower:
+            # Additional check: look for suspicious context
+            # (e.g., %3cscript is suspicious, %3cvalue%3e might be legitimate)
+            if pattern in ['%3c', '%3e']:  # < and >
+                # Check if followed by common XSS keywords
+                idx = query_lower.find(pattern)
+                if idx != -1 and idx + len(pattern) < len(query_lower):
+                    following = query_lower[idx + len(pattern):idx + len(pattern) + 10]
+                    if any(kw in following for kw in ['script', 'iframe', 'object', 'svg', 'body', 'img']):
+                        return True
+            elif pattern in ['%27', '%22']:  # ' and "
+                # Check for SQL-like patterns around quotes
+                idx = query_lower.find(pattern)
+                if idx != -1:
+                    context = query_lower[max(0, idx - 10):min(len(query_lower), idx + 20)]
+                    if any(kw in context for kw in ['or', 'and', 'union', 'select', '1=1']):
+                        return True
+            else:
+                # Other encoded chars are suspicious enough on their own
+                return True
+
+    return False
+
+
 def has_credentials(url: str) -> bool:
     """Detect URLs containing credentials (userinfo) in the authority component.
 
@@ -525,5 +643,5 @@ __all__ = [
     "is_dangerous_port", "extract_host_and_path", "validate_url_security",
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
-    "has_credentials",
+    "has_credentials", "has_query_injection",
 ]
