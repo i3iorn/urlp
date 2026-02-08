@@ -303,6 +303,36 @@ def is_open_redirect_risk(path: str) -> bool:
     return '\\' in path or path.startswith('//')
 
 
+def is_malicious_ipv6_zone_id(host: str) -> bool:
+    """Check if IPv6 zone identifier contains malicious content.
+
+    Zone identifiers should only contain alphanumeric characters, dash, underscore,
+    dot, and tilde per RFC 6874.
+    """
+    if not isinstance(host, str):
+        return False
+
+    if '%25' not in host and '%' not in host:
+        return False
+
+    if not (host.startswith('[') and ']' in host):
+        return False
+
+    try:
+        inner = host[1:host.index(']')]
+        if '%25' in inner or '%' in inner:
+            zone_id = inner.split('%25' if '%25' in inner else '%', 1)[1]
+            if not zone_id:
+                return True
+            for char in zone_id:
+                if not (char.isalnum() or char in '-_.~'):
+                    return True
+    except (ValueError, IndexError):
+        return True
+
+    return False
+
+
 def has_parser_confusion(url: str) -> bool:
     """Detect ambiguous URLs that could be parsed differently by different parsers.
 
@@ -378,6 +408,8 @@ def validate_url_security(url: str) -> None:
     if '://' not in url:
         return
     host, path = extract_host_and_path(url)
+    if host and is_malicious_ipv6_zone_id(host):
+        raise InvalidURLError("IPv6 zone identifier contains invalid characters.")
     if host and not is_ascii and has_mixed_scripts(host):
         raise InvalidURLError("URL host contains mixed Unicode scripts.")
     if path:
@@ -409,7 +441,8 @@ def clear_caches() -> dict:
 __all__ = [
     "is_ssrf_risk", "is_private_ip", "check_dns_rebinding", "has_mixed_scripts",
     "has_double_encoding", "has_path_traversal", "is_open_redirect_risk",
-    "has_parser_confusion", "extract_host_and_path", "validate_url_security",
+    "has_parser_confusion", "is_malicious_ipv6_zone_id",
+    "extract_host_and_path", "validate_url_security",
     "get_cache_info", "clear_caches",
     "check_against_phishing_db", "refresh_phishing_db", "get_phishing_db_info",
 ]
