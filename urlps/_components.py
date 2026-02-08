@@ -11,7 +11,6 @@ import sys
 
 QueryPairs = List[Tuple[str, Optional[str]]]
 
-# Check if we can use slots (Python 3.10+)
 _SUPPORTS_SLOTS = sys.version_info >= (3, 10)
 
 

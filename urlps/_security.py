@@ -13,10 +13,6 @@ from .constants import BLOCKED_HOSTNAMES, DEFAULT_DNS_TIMEOUT
 from ._patterns import PATTERNS
 
 
-# =============================================================================
-# IP Address Safety Checks
-# =============================================================================
-
 def _is_ip_safe(ip: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]) -> bool:
     """Check if IP is safe (not private/reserved)."""
     return not (ip.is_private or ip.is_loopback or ip.is_multicast or ip.is_reserved or ip.is_link_local)
@@ -49,10 +45,6 @@ def _strip_ipv6_brackets(host: str) -> str:
             host, _, _ = host.partition('%25')
     return host
 
-
-# =============================================================================
-# SSRF Detection Helpers
-# =============================================================================
 
 def _is_blocked_hostname(host_lower: str) -> bool:
     """Check if hostname is in the blocklist."""
@@ -116,10 +108,6 @@ def _is_octal_hex_ip_private(host: str) -> bool:
         return False
 
 
-# =============================================================================
-# DNS Resolution Safety
-# =============================================================================
-
 def _check_direct_ip_safe(host: str) -> Optional[bool]:
     """Check if host is a direct IP and if it's safe. Returns None if not IP."""
     try:
@@ -157,10 +145,6 @@ def _verify_connection_safe(addr_info, timeout: float) -> bool:
     finally:
         test_sock.close()
 
-
-# =============================================================================
-# Public Security Check Functions
-# =============================================================================
 
 @lru_cache(maxsize=512)
 def is_private_ip(host: str) -> bool:
@@ -265,13 +249,11 @@ def has_mixed_scripts(host: str) -> bool:
     """
     if not isinstance(host, str):
         return False
-    # Fast path: ASCII-only hosts cannot have mixed Unicode scripts
-    # This optimization avoids expensive unicodedata imports for common case
     try:
         host.encode('ascii')
-        return False  # Pure ASCII, no mixed scripts possible
+        return False
     except (UnicodeEncodeError, UnicodeDecodeError):
-        pass  # Contains non-ASCII, continue with full check
+        pass
 
     try:
         import unicodedata
@@ -349,7 +331,6 @@ def validate_url_security(url: str) -> None:
     """
     from .exceptions import InvalidURLError
 
-    # Fast path: Pure ASCII URLs skip expensive Unicode checks
     is_ascii = True
     try:
         url.encode('ascii')
@@ -361,7 +342,6 @@ def validate_url_security(url: str) -> None:
     if '://' not in url:
         return
     host, path = extract_host_and_path(url)
-    # Skip mixed script check for ASCII-only URLs (major optimization)
     if host and not is_ascii and has_mixed_scripts(host):
         raise InvalidURLError("URL host contains mixed Unicode scripts.")
     if path:
@@ -371,7 +351,6 @@ def validate_url_security(url: str) -> None:
             raise InvalidURLError("URL path contains open redirect risk patterns.")
 
 
-# Cache management
 _CACHED_FUNCTIONS = [is_private_ip, is_ssrf_risk, has_mixed_scripts]
 
 

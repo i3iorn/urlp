@@ -7,11 +7,9 @@ from typing import Optional, Callable, TYPE_CHECKING, Dict, Any
 if TYPE_CHECKING:
     from .url import URL
 
-# Thread-safe audit callback for security logging
 _audit_callback_lock = threading.Lock()
 _audit_callback: Optional[Callable[[str, Optional['URL'], Optional[Exception]], None]] = None
 
-# Metrics for callback failures
 _callback_failure_count: int = 0
 _last_callback_error: Optional[Exception] = None
 
@@ -54,8 +52,6 @@ def invoke_audit_callback(
         try:
             callback(raw_url, parsed_url, exception)
         except Exception as e:
-            # Don't let callback errors propagate and break URL parsing
-            # but track them for diagnostics
             with _audit_callback_lock:
                 _callback_failure_count += 1
                 _last_callback_error = e

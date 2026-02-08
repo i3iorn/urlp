@@ -28,10 +28,8 @@ from ._patterns import PATTERNS
 if TYPE_CHECKING:
     from types import ModuleType
 
-# Use centralized patterns
 compiled_regex = PATTERNS
 
-# IDNA module setup
 _idna_module: Optional[ModuleType] = None
 _HAS_IDNA: bool = False
 
@@ -267,10 +265,6 @@ class Validator:
         if not isinstance(host, str):
             return False
         return Validator.is_valid_ipv4(host) or Validator.is_valid_ipv6(host)
-
-    # =========================================================================
-    # Cache management
-    # =========================================================================
 
     @classmethod
     def get_cache_info(cls) -> Dict[str, Optional[Any]]:

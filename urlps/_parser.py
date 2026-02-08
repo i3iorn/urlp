@@ -19,13 +19,8 @@ from .exceptions import (
 )
 from ._validation import Validator, is_valid_userinfo
 
-# Reuse a single Builder for simple serialization tasks to reduce allocations
 _builder_singleton = Builder()
 
-
-# =============================================================================
-# Pure Parsing Functions
-# =============================================================================
 
 def parse_scheme(url: str, allow_custom: bool = False) -> Tuple[Optional[str], str, Optional[bool]]:
     """Parse scheme from URL. Returns (scheme, remainder, recognized_scheme)."""
@@ -119,15 +114,12 @@ def parse_regular_host(host_candidate: str) -> Tuple[str, Optional[int]]:
     host_part, sep, port_part = host_candidate.partition(":")
     if not host_part:
         raise MissingHostError("Host cannot be empty.", value=host_part, component="host")
-    # IPv4 check
     if "." in host_part and host_part.replace(".", "").replace("-", "").isdigit():
         if not Validator.is_valid_ipv4(host_part):
             raise HostValidationError("Invalid IPv4 address format.", value=host_part, component="host")
         return host_part, parse_port(port_part) if sep else None
-    # Hostname validation
     if not Validator.is_valid_host(host_part):
         raise HostValidationError("Host contains invalid characters.", value=host_part, component="host")
-    # Only IDNA-encode if non-ASCII is present
     if any(ord(c) > 127 for c in host_part):
         try:
             ascii_host = host_part.encode("idna").decode("ascii")
@@ -199,7 +191,6 @@ def _validate_query_string_batch(query: str) -> bool:
     Performance: Single regex pass instead of per-parameter validation.
     Returns True if valid, False otherwise.
     """
-    # Check for control characters in the entire query string at once
     return Validator.is_url_safe_string(query)
 
 
@@ -217,7 +208,6 @@ def parse_query_string(query_candidate: Optional[str]) -> Tuple[Optional[str], Q
     if len(query_candidate) > MAX_QUERY_LENGTH:
         raise QueryParsingError(f"Query exceeds maximum length of {MAX_QUERY_LENGTH}.", value=query_candidate, component="query")
 
-    # Batch validation: check entire query string at once
     if not _validate_query_string_batch(query_candidate):
         raise QueryParsingError("Query string contains invalid characters.", value=query_candidate, component="query")
 
@@ -229,10 +219,8 @@ def parse_query_string(query_candidate: Optional[str]) -> Tuple[Optional[str], Q
         key = _fast_unquote_plus(key_raw)
         if not key:
             raise QueryParsingError("Query keys must be non-empty.", value=chunk, component="query")
-        # Individual validation removed - already validated in batch above
         pairs.append((key, _fast_unquote_plus(value_raw) if sep else None))
 
-    # Serialize pairs to normalized query string (removes empty chunks, normalizes encoding)
     return _builder_singleton.serialize_query(pairs), pairs
 
 
@@ -270,12 +258,12 @@ def parse_url(url: str, allow_custom_scheme: bool = False) -> ParseResult:
 
     remainder, fragment_str = split_fragment(remainder)
     remainder, query_str = split_query(remainder)
-    
+
     if (scheme and "://" in working) or (not scheme and url.startswith("//")):
         authority, path_candidate = split_authority(remainder)
     else:
         authority, path_candidate = "", remainder
-    
+
     userinfo, host_candidate = parse_userinfo(authority)
     require_host = bool(scheme) and scheme is not None and scheme.lower() != "file" and "://" in working if scheme else False
     host, port = parse_host(host_candidate, require_host=require_host)
@@ -285,17 +273,13 @@ def parse_url(url: str, allow_custom_scheme: bool = False) -> ParseResult:
         path = "/"
     query, query_pairs = parse_query_string(query_str)
     fragment = parse_fragment_string(fragment_str)
-    
+
     return ParseResult(
         scheme=scheme, userinfo=userinfo, host=host, port=port, path=path,
         query=query, fragment=fragment, query_pairs=list(query_pairs),
         recognized_scheme=recognized,
     )
 
-
-# =============================================================================
-# Parser Class (Backward Compatibility)
-# =============================================================================
 
 class Parser:
     """URL parser class for backward compatibility."""

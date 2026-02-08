@@ -27,9 +27,6 @@ from urlps.exceptions import URLpError, InvalidURLError, URLParseError, URLBuild
 from urlps.url import URL
 
 
-# =============================================================================
-# Public API Functions
-# =============================================================================
 
 def parse_url(
     url: str, *,
@@ -50,7 +47,6 @@ def parse_url(
     For parsing URLs without security checks (e.g., internal/development URLs),
     use `parse_url_unsafe()` instead.
     """
-    # Lazy imports to avoid heavy module load at simple `import urlps` time.
     from . import _security as _security
     from . import _parser as _parser
     from . import url as _url
@@ -114,7 +110,6 @@ def build(
     elif len(scheme_and_host) >= 2:
         scheme, host, *_ = scheme_and_host
     else:
-        # Import exception lazily
         from .exceptions import URLBuildError
         raise URLBuildError("At least host must be provided to build a URL.")
 
@@ -142,9 +137,6 @@ def compose_url(components: Mapping[str, Any]) -> str:
     return _builder.Builder().compose(components)
 
 
-# =============================================================================
-# Performance & Cache Management
-# =============================================================================
 
 def get_cache_info() -> dict:
     """Get statistics about all internal caches.
@@ -203,7 +195,6 @@ def clear_all_caches() -> dict:
         'builder': {}
     }
 
-    # Clear builder caches
     if hasattr(_builder.Builder._percent_encode_cached, 'cache_clear'):
         previous['builder']['percent_encode'] = _builder.Builder._percent_encode_cached.cache_info().currsize
         _builder.Builder._percent_encode_cached.cache_clear()
@@ -215,30 +206,19 @@ def clear_all_caches() -> dict:
     return previous
 
 
-# =============================================================================
-# Public API
-# =============================================================================
-
 __all__ = [
-    # Version
     "__version__",
-    # Primary API - Parsing
     "parse_url",
     "parse_url_unsafe",
-    # Primary API - Building
     "build",
     "compose_url",
-    # URL class
     "URL",
-    # Exceptions
     "URLpError",
     "InvalidURLError",
     "URLParseError",
     "URLBuildError",
-    # Audit callbacks
     "set_audit_callback",
     "get_audit_callback",
-    # Performance & Cache Management
     "get_cache_info",
     "clear_all_caches",
 ]

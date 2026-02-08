@@ -124,16 +124,11 @@ class URL:
         self._path = components.get("path") or ""
         self._query = components.get("query")
         self._fragment = components.get("fragment")
-        # Use query_pairs from components if provided, otherwise from parser
         query_pairs = components.get("query_pairs")
         if query_pairs is not None:
             self._query_pairs = list(query_pairs)
         else:
             self._query_pairs = list(getattr(self._parser, "query_pairs", []))
-
-    # =========================================================================
-    # Read-only Properties
-    # =========================================================================
 
     @property
     def scheme(self) -> Optional[str]:
@@ -210,10 +205,6 @@ class URL:
             return f"{self._scheme}://{self._host}:{port}"
         return f"{self._scheme}://{self._host}"
 
-    # =========================================================================
-    # Immutable Update Methods (return new URL)
-    # =========================================================================
-
     def copy(self, **overrides: Any) -> 'URL':
         """Create a copy with optional component overrides.
 
@@ -289,10 +280,6 @@ class URL:
         """Return new URL without query string or fragment."""
         return self.copy(query=None, query_pairs=[], fragment=None)
 
-    # =========================================================================
-    # Comparison and Normalization
-    # =========================================================================
-
     def same_origin(self, other: 'URL') -> bool:
         """Check if this URL has the same origin as another URL."""
         return self.origin == other.origin
@@ -320,10 +307,6 @@ class URL:
         if not isinstance(other, URL):
             return False
         return self.canonicalize().as_string() == other.canonicalize().as_string()
-
-    # =========================================================================
-    # String Conversion
-    # =========================================================================
 
     def as_string(self, *, mask_password: bool = False) -> str:
         """Return URL as string, optionally masking password in userinfo."""
@@ -389,7 +372,6 @@ class URL:
         if not isinstance(other, URL):
             return NotImplemented
         return self.as_string() >= other.as_string()
-
 
 
 def _normalize_port(value: Optional[Any]) -> Optional[int]:

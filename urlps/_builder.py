@@ -13,19 +13,17 @@ from ._patterns import PATTERNS
 
 QueryPairs = List[Tuple[str, Optional[str]]]
 
-# Use centralized pattern
 _PERCENT_ENCODE_PATTERN = PATTERNS["percent_encode"]
 
-# LRU-cached helper for query encoding across calls to avoid rebuilding per-call cache
+
 @lru_cache(maxsize=8192)
 def _encode_for_query(value: str, safe: str) -> str:
     """Encode a query component with quote_plus and normalize percent-encodings to uppercase.
 
-    This function is cached across serialize_query calls to amortize the cost
+    Performance: Cached across serialize_query calls to amortize the cost
     of percent-encoding for repeated keys/values.
     """
     encoded = quote_plus(value, safe=safe)
-    # Normalize percent-encodings to uppercase
     return _PERCENT_ENCODE_PATTERN.sub(lambda m: m.group(0).upper(), encoded)
 
 

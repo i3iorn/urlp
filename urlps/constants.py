@@ -29,28 +29,23 @@ DEFAULT_PORTS: Dict[str, int] = {
 
 SCHEMES_NO_PORT: Set[str] = {OfficialSchemes.FILE.value}
 
-# Official and unsafe schemes (moved from _parser.py)
 OFFICIAL_SCHEMES: FrozenSet[str] = frozenset(s.value for s in OfficialSchemes)
 UNSAFE_SCHEMES: FrozenSet[str] = frozenset({"javascript", "data", "vbscript"})
 
-# Standard well-known ports (moved from _validation.py)
 STANDARD_PORTS: FrozenSet[int] = frozenset([80, 443, 21, 22, 25, 110, 143, 53])
 
 # Component length limits for security (tuned for 99.99% of URLs)
 # These are intentionally conservative to reduce attack surface while
 # still accommodating real-world usage (tracking, long query strings, etc.).
-MAX_URL_LENGTH = 32 * 1024         # 32 KB total URL length
+MAX_URL_LENGTH = 32 * 1024
 MAX_SCHEME_LENGTH = 16
-MAX_HOST_LENGTH = 253              # Per DNS specification
-MAX_PATH_LENGTH = 4 * 1024         # 4 KB
-MAX_QUERY_LENGTH = 8 * 1024        # 8 KB
-MAX_FRAGMENT_LENGTH = 1 * 1024     # 1 KB
-MAX_USERINFO_LENGTH = 128          # 128 chars for userinfo
-MAX_IPV6_STRING_LENGTH = 128       # Max length for bracketed IPv6 with zone ID
+MAX_HOST_LENGTH = 253
+MAX_PATH_LENGTH = 4 * 1024
+MAX_QUERY_LENGTH = 8 * 1024
+MAX_FRAGMENT_LENGTH = 1 * 1024
+MAX_USERINFO_LENGTH = 128
+MAX_IPV6_STRING_LENGTH = 128
 
-# Allow overriding the above max-lengths via environment variables.
-# Each env var should contain a positive integer. Invalid values are ignored
-# and a warning is emitted.
 _ENV_OVERRIDES = {
     "MAX_URL_LENGTH": "URLPS_MAX_URL_LENGTH",
     "MAX_SCHEME_LENGTH": "URLPS_MAX_SCHEME_LENGTH",
@@ -85,11 +80,8 @@ def _apply_env_overrides() -> None:
         globals()[const_name] = iv
 
 
-# Apply overrides at import time
 _apply_env_overrides()
 
-# Blocked hostnames for SSRF protection
-# This is a blocklist of dangerous hostnames, not bind addresses
 BLOCKED_HOSTNAMES: FrozenSet[str] = frozenset({  # nosec B104
     # Localhost variations
     "localhost",
@@ -108,19 +100,15 @@ BLOCKED_HOSTNAMES: FrozenSet[str] = frozenset({  # nosec B104
     "169.254.169.254",
     "metadata.google.internal",
     "metadata.goog",
-    "169.254.170.2",  # ECS metadata
-    # Link-local
+    "169.254.170.2",
     "169.254.0.0",
-    # Kubernetes
     "kubernetes.default",
     "kubernetes.default.svc",
     "kubernetes.default.svc.cluster.local",
 })
 
-# DNS rebinding protection settings (improvement #4 round 2)
 DEFAULT_DNS_TIMEOUT: float = 2.0
 
-# Password masking placeholder (improvement #3 round 2)
 PASSWORD_MASK: str = "***"
 
 
